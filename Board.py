@@ -1,13 +1,15 @@
 import numpy as np
 from Piece import Piece
 from Square import Square
+import copy
 
 
 class Board(object):
     def __init__(self):
         self.move_sequence = []
         self.square_count = 0
-        self.origin_square, self.final_square, self.captured_square = Square, Square, Square
+        self.origin_square, self.final_square,  self.captured_square = Square, Square, Square
+        self.checkers_board_copy = None
         self.valid_move = False
         self.row_count, self.column_count = 8, 8  # Size of checkers board
         self.checkers_board = np.full((self.row_count, self.column_count), Square)  # Define 2D array of Square objects
@@ -29,7 +31,8 @@ class Board(object):
         self.final_square.piece = self.origin_square.piece
         self.origin_square.piece = None
         self.crown_pieces()
-        self.captured_pieces()
+        self.captured_square.piece = None
+        # self.captured_pieces()
 
     def crown_pieces(self):
         if self.final_square.piece.colour == "black":
@@ -41,7 +44,8 @@ class Board(object):
 
     def captured_pieces(self):
         if self.captured_square:
-            self.captured_square.piece = None  # Remove captured piece
+            for pieces in self.captured_square:
+                pieces.piece = None  # Remove captured pieces
 
     def legal_move(self, white_turn):
         temporary_square = None
@@ -67,7 +71,7 @@ class Board(object):
                     print("Game Over. Black wins")
                     exit(0)
                 else:
-                    print("Game over. Black wins")
+                    print("Game over. White wins")
                     exit(0)
             if self.move_sequence[1] in possible_moves:  # Check if move is in possible moves
                 print("Valid move")
@@ -81,6 +85,7 @@ class Board(object):
 
     def possible_moves(self, selected_square):
         print("Valid Piece", selected_square.piece.colour)
+        self.checkers_board_copy = self.checkers_board
         temporary_possible_moves = self.get_piece_moves(selected_square)
         final_possible_moves = []
 
@@ -101,54 +106,48 @@ class Board(object):
 
     def get_piece_moves(self, selected_square):
         piece_moves = []
-        diagonal_moves = [[1, 1], [1, -1], [-1, 1], [-1, -1]]
+
         if selected_square.piece.colour == "black" and \
                 selected_square.piece.crowned is False:  # Selected piece is black, uncrowned\
-            for square in range(3, 10):  # Furthest a piece can hop alters square number by 9
-                if square > 5:  # Move with a hop/capture
-                    for diagonal in diagonal_moves:
-                        if self.checkers_board[selected_square.row+diagonal[0]][selected_square.column+diagonal[1]].piece:
-                            if self.checkers_board[selected_square.row+diagonal[0]][selected_square.column+diagonal[1]].piece.colour\
-                                    is not selected_square.piece.colour:
-                                self.captured_square = self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]]
-                                piece_moves.append(selected_square.number+square)
-                else:
+            for square in range(3, 6):  # Furthest a piece can move without hopping
                     piece_moves.append(selected_square.number+square)
+            for move in self.get_capture_moves(selected_square):  # calculate capture moves
+                piece_moves.append(move)
 
         if selected_square.piece.colour == "white" and \
                 selected_square.piece.crowned is False:  # Selected piece is black, uncrowned
-            for square in range(10, 3, -1):
-                if square > 5:  # Move with a hop/capture
-                    for diagonal in diagonal_moves:
-                        if self.checkers_board[selected_square.row+diagonal[0]][selected_square.column+diagonal[1]].piece:
-                            if self.checkers_board[selected_square.row+diagonal[0]][selected_square.column+diagonal[1]].piece.colour\
-                                    is not selected_square.piece.colour:
-                                self.captured_square = self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]]
-                                piece_moves.append(selected_square.number-square)
-                else:
-                    piece_moves.append(selected_square.number - square)
+            for square in range(6, 3, -1):  # Furthest a piece can move without hopping
+                piece_moves.append(selected_square.number-square)
+            for move in self.get_capture_moves(selected_square):  # calculate capture moves
+                piece_moves.append(move)
+
         if selected_square.piece.crowned:  # Crowned piece has been selected
-            for square in range(3, 10):
-                if square > 5:  # Move with a hop/capture
-                    for diagonal in diagonal_moves:
-                        if self.checkers_board[selected_square.row+diagonal[0]][selected_square.column+diagonal[1]].piece:
-                            if self.checkers_board[selected_square.row+diagonal[0]][selected_square.column+diagonal[1]].piece.colour\
-                                    is not selected_square.piece.colour:
-                                self.captured_square = self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]]
-                                piece_moves.append(selected_square.number+square)
-                else:
-                    piece_moves.append(selected_square.number + square)
-            for square in range(10, 3, -1):
-                if square > 5:  # Move with a hop/capture
-                    for diagonal in diagonal_moves:
-                        if self.checkers_board[selected_square.row+diagonal[0]][selected_square.column+diagonal[1]].piece:
-                            if self.checkers_board[selected_square.row+diagonal[0]][selected_square.column+diagonal[1]].piece.colour\
-                                    is not selected_square.piece.colour:
-                                self.captured_square = self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]]
-                                piece_moves.append(selected_square.number-square)
-                else:
-                    piece_moves.append(selected_square.number - square)
+            for square in range(3, 6):  # Furthest a piece can move without hopping
+                piece_moves.append(selected_square.number + square)
+            for move in self.get_capture_moves(selected_square):  # calculate capture moves
+                piece_moves.append(move)
+
+            for square in range(6, 3, -1):  # Furthest a piece can move without hopping
+                piece_moves.append(selected_square.number - square)
+            for move in self.get_capture_moves(selected_square):  # calculate capture moves
+                piece_moves.append(move)
+
         return piece_moves
+
+    def get_capture_moves(self, selected_square):
+        diagonal_moves = [[1, 1], [-1, 1], [1, -1], [-1, -1]]
+        new_selected_squares = []
+
+        for diagonal in diagonal_moves:
+            try:
+                    if self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]].piece:  # Piece present in diagonal squares
+                        if self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]].piece.colour is not selected_square.piece.colour:
+                            if not self.checkers_board[selected_square.row + 2 * diagonal[0]][selected_square.column + 2 * diagonal[1]].piece:
+                                new_selected_squares.append(self.checkers_board[selected_square.row + 2 * diagonal[0]][selected_square.column + 2 * diagonal[1]].number)
+                                self.captured_square = self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]]
+            except IndexError:
+                continue
+        return new_selected_squares
 
     def print_checkers_board(self):
         board_representation = np.zeros((self.row_count, self.column_count)).astype(int)  # Temporary 2D array
