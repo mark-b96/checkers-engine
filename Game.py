@@ -1,6 +1,5 @@
 from Board import Board
 from GUI import GUI
-import pygame
 
 
 class Game(object):
@@ -13,9 +12,11 @@ class Game(object):
         interface = GUI()
         interface.draw_board(board)
         interface.update_board(board)
+        interface.get_square_coordinates(board)
 
         while 1:
-            selected_square = interface.event_listener(board)
+            selected_square = interface.event_listener()
+
             if selected_square.piece:
                 if selected_square.piece.colour == "black":
                     piece_colour = False
@@ -36,6 +37,7 @@ class Game(object):
                 if board.legal_move(self.white_turn):
                     board.update_board()
                     board.final_possible_moves = []
+                    selected_piece = None
                     interface.draw_board(board)
                     interface.update_board(board)
                     self.white_turn = not self.white_turn
