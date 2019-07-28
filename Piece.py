@@ -3,3 +3,4 @@ class Piece(object):
         self.colour = colour
         self.crowned = crowned
 
+

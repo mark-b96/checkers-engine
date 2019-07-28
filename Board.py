@@ -17,13 +17,13 @@ class Board(object):
             for column in range(self.column_count):
                 if column % 2 != 0 and row % 2 == 0 or column % 2 == 0 and row % 2 != 0:  # Find black squares
                     self.square_count = self.square_count+1
-                    self.checkers_board[row][column] = Square("black", row, column, self.square_count, None)  # Populate black squares
+                    self.checkers_board[row][column] = Square("black", row, column, self.square_count, None, None)  # Populate black squares
                     if row < 3:
                         self.checkers_board[row][column].piece = Piece("black", False)  # Populate black pieces
                     if row > (self.row_count - 4):
                         self.checkers_board[row][column].piece = Piece("white", False)  # Populate white pieces
                 else:
-                    self.checkers_board[row][column] = Square("white", row, column, 0, None)  # Populate white squares
+                    self.checkers_board[row][column] = Square("white", row, column, 0, None, None)  # Populate white squares
 
     def update_board(self):
         self.final_square.piece = self.origin_square.piece
@@ -138,27 +138,28 @@ class Board(object):
         for diagonal in diagonal_moves:
                 if self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]].piece:  # Piece present in diagonal squares
                     if self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]].piece.colour is not selected_square.piece.colour:
-                        if not self.checkers_board[selected_square.row + 2 * diagonal[0]][selected_square.column + 2 * diagonal[1]].piece:
-                            final_capture_moves.append(self.checkers_board[selected_square.row + 2 * diagonal[0]][selected_square.column + 2 * diagonal[1]].number)
-                            self.captured_squares.append(self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]])
+                        if selected_square.row + (2 * diagonal[0]) < 8 and selected_square.column + (2 * diagonal[1]) < 8 and \
+                                selected_square.row + (2 * diagonal[0]) > -1 and selected_square.column + (2 * diagonal[1]) > -1:
+                            if not self.checkers_board[selected_square.row + (2 * diagonal[0])][selected_square.column + (2 * diagonal[1])].piece:
+                                final_capture_moves.append(self.checkers_board[selected_square.row + (2 * diagonal[0])][selected_square.column + (2 * diagonal[1])].number)
+                                self.captured_squares.append(self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]])
         return final_capture_moves
 
     @staticmethod
     def get_diagonal_moves(selected_square):
+        diagonal_moves = [[1, 1], [-1, 1], [1, -1], [-1, -1]]
         if selected_square.row == 0:
             diagonal_moves = [[1, -1], [1, 1]]  # South-West, South-East
-        elif selected_square.column == 0:
+        if selected_square.column == 0:
             diagonal_moves = [[-1, 1], [1, 1]]  # North-East, South-East
-        elif selected_square.column == 7:
+        if selected_square.column == 7:
             diagonal_moves = [[-1, -1], [1, -1]]  # North-West, South-West
-        elif selected_square.row == 7:
+        if selected_square.row == 7:
             diagonal_moves = [[-1, -1], [-1, 1]]  # North-West, North-East
-        elif selected_square.row == 0 and selected_square.column == 7:
+        if selected_square.column == 7 and selected_square.row == 0:
             diagonal_moves = [[1, -1]]  # South-West
-        elif selected_square.row == 7 and selected_square.column == 0:
+        if selected_square.column == 0 and selected_square.row == 7:
             diagonal_moves = [[-1, 1]]  # North-East
-        else:
-            diagonal_moves = [[1, 1], [-1, 1], [1, -1], [-1, -1]]
 
         return diagonal_moves
 
