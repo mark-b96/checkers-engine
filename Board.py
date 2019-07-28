@@ -5,7 +5,7 @@ from Square import Square
 
 class Board(object):
     def __init__(self):
-        self.move_sequence, self.captured_squares = [], []
+        self.move_sequence, self.captured_squares, self.final_possible_moves = [], [], []
         self.square_count = 0
         self.origin_square, self.final_square = Square, Square
         self.valid_move = False
@@ -46,7 +46,7 @@ class Board(object):
         if captured_piece:
             for captures in self.captured_squares:
                 if abs(self.final_square.column - captures.column) < 2 and\
-                        abs(self.final_square.row - captures.row) < 2:
+                        abs(self.final_square.row - captures.row) < 2:  # Check that correct piece is removed
                     captures.piece = None  # Remove captured pieces
         self.captured_squares.clear()
 
@@ -85,7 +85,7 @@ class Board(object):
     def possible_moves(self, selected_square):
         print("Valid Piece", selected_square.piece.colour)
         temporary_possible_moves = self.get_piece_moves(selected_square)
-        final_possible_moves = []
+        self.final_possible_moves = []
 
         for row in range(self.row_count):
             for column in range(self.column_count):
@@ -95,11 +95,11 @@ class Board(object):
                             if (abs(self.checkers_board[row][column].column - selected_square.column) < 3) and \
                                     self.checkers_board[row][column].column != selected_square.column and \
                                     self.checkers_board[row][column].row != selected_square.row:
-                                    final_possible_moves.append(self.checkers_board[row][column].number)
-        if not final_possible_moves:
+                                    self.final_possible_moves.append(self.checkers_board[row][column].number)
+        if not self.final_possible_moves:
             return 0
-        print(final_possible_moves)
-        return final_possible_moves
+        print(self.final_possible_moves)
+        return self.final_possible_moves
 
     def get_piece_moves(self, selected_square):
         piece_moves = []
@@ -139,7 +139,6 @@ class Board(object):
                 if self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]].piece:  # Piece present in diagonal squares
                     if self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]].piece.colour is not selected_square.piece.colour:
                         if not self.checkers_board[selected_square.row + 2 * diagonal[0]][selected_square.column + 2 * diagonal[1]].piece:
-                            new_selected_squares = self.checkers_board[selected_square.row + 2 * diagonal[0]][selected_square.column + 2 * diagonal[1]]
                             final_capture_moves.append(self.checkers_board[selected_square.row + 2 * diagonal[0]][selected_square.column + 2 * diagonal[1]].number)
                             self.captured_squares.append(self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]])
         return final_capture_moves
@@ -182,5 +181,4 @@ class Board(object):
 
                     else:
                         board_representation[row][column] = 3  # Black squares that are vacant
-
         print(board_representation)
