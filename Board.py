@@ -138,10 +138,10 @@ class Board(object):
         for diagonal in diagonal_moves:
                 if self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]].piece:  # Piece present in diagonal squares
                     if self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]].piece.colour is not selected_square.piece.colour:
-                        if selected_square.row + (2 * diagonal[0]) < 8 and selected_square.column + (2 * diagonal[1]) < 8 and \
-                                selected_square.row + (2 * diagonal[0]) > -1 and selected_square.column + (2 * diagonal[1]) > -1:
-                            if not self.checkers_board[selected_square.row + (2 * diagonal[0])][selected_square.column + (2 * diagonal[1])].piece:
-                                final_capture_moves.append(self.checkers_board[selected_square.row + (2 * diagonal[0])][selected_square.column + (2 * diagonal[1])].number)
+                        if (-1 < selected_square.row + (2*diagonal[0]) < 8) and \
+                                (-1 < selected_square.column + (2*diagonal[1]) < 8):
+                            if not self.checkers_board[selected_square.row + (2*diagonal[0])][selected_square.column + (2*diagonal[1])].piece:
+                                final_capture_moves.append(self.checkers_board[selected_square.row + (2*diagonal[0])][selected_square.column + (2*diagonal[1])].number)
                                 self.captured_squares.append(self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]])
         return final_capture_moves
 

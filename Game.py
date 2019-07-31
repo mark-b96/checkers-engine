@@ -13,6 +13,7 @@ class Game(object):
         interface.draw_board(board)
         interface.update_board(board)
         interface.get_square_coordinates(board)
+        selected_piece = None
 
         while 1:
             selected_square = interface.event_listener()
@@ -24,7 +25,7 @@ class Game(object):
                     piece_colour = True
                 if piece_colour == self.white_turn:
                     legal_moves = board.possible_moves(selected_square)
-                    print("Legal Moves", legal_moves)
+                    # print("Legal Moves", legal_moves)
                     selected_piece = selected_square
                     selected_square = None
                 else:
@@ -33,7 +34,6 @@ class Game(object):
             interface.update_board(board)
             if selected_piece and selected_square:
                 board.move_sequence = [selected_piece.number, selected_square.number]
-                print(board.move_sequence)
                 if board.legal_move(self.white_turn):
                     board.update_board()
                     board.final_possible_moves = []
