@@ -9,23 +9,26 @@ import struct
 #     serin = ser.read()
 #     connected = True
 
-packet_id = 0x01
-param_count = 6
+packet_id = 0x01  # Servo ID
+param_count = 3  # Number of parameters
 packet_length = param_count+3
-instruction = 0x03
-Param_1 = 0x74
-Param_2 = 0x00
-Param_3 = 0x00
-Param_4 = 0x02
-Param_5 = 0x00
-Param_6 = 0x00
-packet = bytearray([0xff, 0xff, 0xfd, 0x00, packet_id, packet_length, 0,  instruction, Param_1, Param_2, Param_3, Param_4, Param_5, Param_6])
+instruction = 0x03  # Write
+Param_1 = 0x41  # Low-order byte from the starting address
+Param_2 = 0x00  # High-order byte from the starting address
+Param_3 = 0x01  # First Byte
+# Param_4 = 0x02
+# Param_5 = 0x00
+# Param_6 = 0x00
+packet = bytearray([0xff, 0xff, 0xfd, 0x00, packet_id, packet_length, 0,  instruction, Param_1, Param_2, Param_3])
 
-crc_fun = crcmod.mkCrcFun(0x18005, initCrc=0, rev=False)
+crc_fun = crcmod.mkCrcFun(0x18005, initCrc=0, rev=False)  # Calculate CRC1 and CRC2
 crc = crc_fun(bytes(packet))  # Convert binary value to bytes
 
 packet.extend(struct.pack('<H', crc))
-print('Packet: '+ ":".join("{:02x}".format(c) for c in packet))
+print(packet)
+print('Packet: ' + ":".join("{:02x}".format(c) for c in packet))
+print('Packet: ' + ":".join("{:02b}".format(c) for c in packet))
+print('Packet: ' + ":".join("{:.3g}".format(c) for c in packet))
 # cmd = packet
 # ser.write(cmd)
 #
