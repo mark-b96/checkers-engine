@@ -2,7 +2,8 @@ from Board import Board
 from GUI import GUI
 from CaptureBoard import CaptureBoard
 from AI import AI
-
+from anytree import Node, RenderTree
+import copy
 
 class Game(object):
     def __init__(self):
@@ -13,15 +14,33 @@ class Game(object):
         board.initialise_board()
         interface = GUI()
         interface.draw_board(board)
-        interface.update_board(board)
+        interface.update_GUI(board)
         interface.get_square_coordinates(board)
         selected_piece = None
         target_square = None
         # capture = CaptureBoard()
         # cap = capture.initialise_camera()
         ai = AI()
-        ai.get_possible_moves(board, self.white_turn)
-        ai.construct_game_tree(board)
+        depth = 3
+        root = Node(board)
+        parent = root
+        ai.get_possible_moves(board, self.white_turn, root, depth=5)
+        print(RenderTree(root))
+        # while depth > 0:
+        # self.white_turn = not self.white_turn
+        # for child in parent.children:
+        #     ai.get_possible_moves(child.name, self.white_turn, child)
+        #     self.white_turn = not self.white_turn
+        #     for grandchild in child.children:
+        #         ai.get_possible_moves(grandchild.name, self.white_turn, grandchild)
+
+        print(len(root.leaves))
+            # depth = depth - 1
+        # for depth in range(3):
+        #     self.white_turn = not self.white_turn
+        #     child_nodes = ai.construct_game_tree(board)
+        #     for child in child_nodes.name:
+        #         ai.get_possible_moves(child, self.white_turn)
         # while 1:
         #     capture.capture_image(cap)
         #     circle_coordinates = capture.process_image()

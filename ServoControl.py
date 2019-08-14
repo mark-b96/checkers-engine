@@ -2,9 +2,11 @@ import serial
 import crcmod
 import struct
 
-# connected = True
-# ser = serial.Serial("/dev/ttyACM0", 57600, timeout=1)
-#
+channel = 12
+connected = True
+ser = serial.Serial("/dev/ttyACM0", 57600, timeout=1)
+GPIO.setmode(GPIO.Board)
+GPIO.setup(channel, GPIO.OUT)
 # while not connected:
 #     serin = ser.read()
 #     connected = True
@@ -29,8 +31,14 @@ print(packet)
 print('Packet: ' + ":".join("{:02x}".format(c) for c in packet))
 print('Packet: ' + ":".join("{:02b}".format(c) for c in packet))
 print('Packet: ' + ":".join("{:.3g}".format(c) for c in packet))
-# cmd = packet
-# ser.write(cmd)
+cmd = packet
+GPIO.output(channel, GPIO.HIGH)
+ser.write(cmd)
+time.sleep(0.1)
+GPIO.output(channel, GPIO.LOW)
+time.sleep(1)
+
+
 #
 # while 1:
 #     reading = str(ser.readline())
