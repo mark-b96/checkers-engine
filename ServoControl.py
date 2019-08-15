@@ -1,10 +1,10 @@
 import serial
 import crcmod
 import struct
-# import ASUS.GPIO as GPIO
+import ASUS.GPIO as GPIO
 import time
 from Registers import Registers
-import binascii
+
 
 class ServoControl(object):
     def __init__(self):
@@ -43,27 +43,36 @@ class ServoControl(object):
 
     def calculate_crc(self, packet):
         crc_fun = crcmod.mkCrcFun(0x18005, initCrc=0, rev=False)  # Calculate CRC1 and CRC2
-        crc = crc_fun(bytes(packet))  # Convert binary value to bytes
+        crc = crc_fun(bytes(packet))  # Convert binary value to byte_count
         packet.extend(struct.pack('<H', crc))
         print('Packet: ' + ":".join("{:02x}".format(c) for c in packet))
 
-    def calculate_parameters(self, command):
+    @staticmethod
+    def calculate_parameters(command):
         r = Registers()
         address = r.get_address(command)
-        bytes = r.get_bytes(command)
+        byte_count = r.get_bytes(command)
         parameter_1 = address  # Low-order byte from the starting address
         parameter_2 = 0x00  # High-order byte from the starting address
-        parameter_3 = 0x01
-        desired_value = hex(2048)
-        print(desired_value)
-        # parameter_3 = desired_value[:2]# First Byte
-        # parameter_4 = desired_value[2:]# Second Byte
-        return parameter_1, parameter_2, parameter_3
+        parameter_3 = 0x01  # Turn on
 
-    def transmit_packet(self):
-        parameters = self.calculate_parameters('Goal Position')
+        if byte_count > 2:
+            desired_value = hex(512)[2:].zfill(byte_count*2)
+            parameter_3 = int(desired_value[:2])  # First Byte
+            parameter_4 = int(desired_value[4:6])  # Second Byte
+            parameter_5 = int(desired_value[2:4])  # Third Byte
+            parameter_6 = int(desired_value[:2])  # Forth Byte
+            parameters = [parameter_1, parameter_2, parameter_3, parameter_4, parameter_5, parameter_6]
+        else:
+            if address == 84:
+                parameter_3 = 80
+            parameters = [parameter_1, parameter_2, parameter_3]
+        return parameters
+
+    def transmit_packet(self, command):
+        parameters = self.calculate_parameters(command)
         print(parameters)
-        servo_id = 0x04
+        servo_id = 0x01
         packet = self.generate_packet(servo_id, self.write, parameters)
         try:
             GPIO.output(self.direction_pin, GPIO.HIGH)
@@ -83,9 +92,9 @@ class ServoControl(object):
 
 if __name__ == '__main__':
     servos = ServoControl()
-    servos.transmit_packet()
-# Param_1 = 0x41  # Low-order byte from the starting address
-# Param_2 = 0x00  # High-order byte from the starting address
-# Param_3 = 0x01  # First Byte
-
+    servos.transmit_packet('LED')
+    servos.transmit_packet('Torque Enable')
+    servos.transmit_packet('Goal Position')
+    servos.transmit_packet('Position P Gain')
+    servos.transmit_packet('Goal Position')
 
