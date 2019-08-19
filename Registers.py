@@ -1,8 +1,27 @@
 
-
 class Registers(object):
     def __init__(self):
         self.registers = {
+                         'Model Number': [0, 2],
+                         'Model Information': [2, 4],
+                         'Firmware Version': [6, 1],
+                         'ID': [7, 1],
+                         'Baud Rate': [8, 1],
+                         'Return Delay Time': [9, 1],
+                         'Drive Mode': [10, 1],
+                         'Operating Mode': [11, 1],
+                         'Secondary(Shadow) ID': [12, 1],
+                         'Protocol Type': [13, 1],
+                         'Homing Offset': [20, 4],
+                         'Moving Threshold': [24, 4],
+                         'Temperature Limit': [31, 1],
+                         'Max Voltage Limit': [32, 2],
+                         'Min Voltage Limit': [34, 2],
+                         'PWM Limit': [36, 2],
+                         'Velocity Limit': [44, 4],
+                         'Max Position Limit': [48, 4],
+                         'Min Position Limit': [52, 4],
+                         'Shutdown': [63, 1],
                          'Torque Enable': [64, 1],
                          'LED': [65, 1],
                          'Status Return Level': [68, 1],
