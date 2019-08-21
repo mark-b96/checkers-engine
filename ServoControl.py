@@ -41,7 +41,8 @@ class ServoControl(object):
         self.calculate_crc(packet)
         return packet
 
-    def calculate_crc(self, packet):
+    @staticmethod
+    def calculate_crc(packet):
         crc_fun = crcmod.mkCrcFun(0x18005, initCrc=0, rev=False)  # Calculate CRC1 and CRC2
         crc = crc_fun(bytes(packet))  # Convert binary value to byte_count
         packet.extend(struct.pack('<H', crc))
@@ -84,7 +85,7 @@ class ServoControl(object):
                 parameter_6 = int(desired_value[:2], 16)  # Forth Byte
                 parameters = [parameter_1, parameter_2, parameter_3, parameter_4, parameter_5, parameter_6]
         else:
-            if address == 84:
+            if address == 84 or address == 82 or address == 80:
                 desired_value = hex(position)[2:].zfill(byte_count * 2)
                 print(desired_value)
                 parameter_3 = int(desired_value[2:4], 16)  # First Byte
@@ -151,17 +152,20 @@ if __name__ == '__main__':
     servos = ServoControl()
     servos.pin_setup()
     servos.serial_setup()
-    servo_id = 1
+    servo_id = 2
     servos.transmit_packet('Present Position', -1, read, servo_id)
 
-    servos.transmit_packet('LED', 0, write, servo_id)
+    servos.transmit_packet('LED', 1, write, servo_id)
+    servos.transmit_packet('Profile Velocity', 60, write, servo_id)  # 60 x 0.229 = 13.74 rpm
+    servos.transmit_packet('Profile Acceleration', 10, write, servo_id)
+    servos.transmit_packet('Present Load', -1, read, servo_id)
     ##    servos.transmit_packet('Present Input Voltage', -1, read, servo_id)
-    ##    servos.transmit_packet('Present Position', -1, read, servo_id)
-    ##    servos.transmit_packet('Position P Gain', 200, write, servo_id)
-    ##    servos.transmit_packet('Position D Gain', 2000, write, servo_id)
-    ##    servos.transmit_packet('Position I Gain', 75, write, servo_id)
+    servos.transmit_packet('Position P Gain', 600, write, servo_id)
+    servos.transmit_packet('Position D Gain', 2000, write, servo_id)
+    servos.transmit_packet('Position I Gain', 75, write, servo_id)
     servos.transmit_packet('Torque Enable', 1, write, servo_id)
-    servos.transmit_packet('Goal Position', 1024, write, servo_id)
-    ##    time.sleep(4)
-    ##    servos.transmit_packet('Present Position', -1, read, servo_id)
+    servos.transmit_packet('Goal Position', 2048, write, servo_id)
+    servos.transmit_packet('Present Position', -1, read, servo_id)
+    servos.transmit_packet('Present Position', -1, read, servo_id)
+    servos.transmit_packet('Present Position', -1, read, servo_id)
     servos.terminate_serial()
