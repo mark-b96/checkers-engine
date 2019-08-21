@@ -14,7 +14,7 @@ class Game(object):
         board.initialise_board()
         interface = GUI()
         interface.draw_board(board)
-        interface.update_GUI(board)
+        interface.update_gui(board)
         interface.get_square_coordinates(board)
         selected_piece = None
         target_square = None

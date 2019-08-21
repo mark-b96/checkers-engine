@@ -30,7 +30,7 @@ class GUI(object):
                 board.checkers_board[row][column].coordinates = (column * self.square_size) + 50, (
                             row * self.square_size) + 50
 
-    def update_GUI(self, board):
+    def update_gui(self, board):
         for row in range(board.row_count):
             for column in range(board.column_count):
                 if board.checkers_board[row][column].piece:
