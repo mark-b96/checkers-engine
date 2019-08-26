@@ -11,6 +11,7 @@ class Board(object):
         self.valid_move = False
         self.row_count, self.column_count = 8, 8  # Size of checkers board
         self.checkers_board = np.full((self.row_count, self.column_count), Square)  # Define 2D array of Square objects
+        self.position_value = 0
 
     def initialise_board(self):
         for row in range(self.row_count):
@@ -68,7 +69,11 @@ class Board(object):
                     if self.checkers_board[row][column].number == self.move_sequence[1]:  # Find target square
                         self.final_square = self.checkers_board[row][column]
         if self.valid_move:
-            possible_moves = self.possible_moves(temporary_square)  # Determine possible moves of selected piece
+            if temporary_square:
+                possible_moves = self.possible_moves(temporary_square)  # Determine possible moves of selected piece
+            else:
+                print("Error in Legal moves")
+                return False
             if possible_moves == 0:
                 print("Invalid move")
                 return False
