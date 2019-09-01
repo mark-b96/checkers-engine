@@ -76,6 +76,7 @@ class Board(object):
                 return False
             if possible_moves == 0:
                 print("Invalid move")
+                print("No moves found")
                 return False
             if self.move_sequence[1] in possible_moves:  # Check if move is in possible moves
                 print("Valid move")

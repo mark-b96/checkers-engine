@@ -128,20 +128,26 @@ class ServoControl(object):
         position = 0
         self.serial_connection.flushOutput()
         header = self.serial_connection.read(3)
-        ##        print("Header: ", header)
+        print("Header: ", header)
         body = self.serial_connection.read(5)
         parameter_count = body[2] - 4
-        ##        print("Parameter count: ", parameter_count)
+        print("Parameter count: ", parameter_count)
         error = self.serial_connection.read(1)
-        ##        print("Error: ", error)
+        print("Error: ", error)
+        character_format = "<B"
+        error_message = struct.unpack(character_format, error)[0]
+        print(error_message)
 
         if parameter_count > 0:
             parameters = self.serial_connection.read(parameter_count)
-            ##            print(parameters)
+            print(parameters)
             if parameter_count == 4:
                 character_format = "<I"  # Reverse bytes (Little-edian) and store as unsigned integer
             if parameter_count == 2:
                 character_format = "<H"  # Reverse bytes (Little-edian) and store as unsigned Short
+            if parameter_count == 1:
+                character_format = "<B"  # Reverse bytes (Little-edian) and store as unsigned char
+
             position = struct.unpack(character_format, parameters)[
                 0]  # Reverse bytes (Little-edian) and store as unsigned integer
         crc_1 = self.serial_connection.read(1)
@@ -164,9 +170,9 @@ class ServoControl(object):
         else:
             self.y_axis_data.append(0)
 
-        if len(self.x_axis_data) > 1:
-            self.x_axis_data = self.x_axis_data[-10:]
-            self.y_axis_data = self.y_axis_data[-10:]
+        if len(self.x_axis_data) > 50:
+            self.x_axis_data = self.x_axis_data[-50:]
+            self.y_axis_data = self.y_axis_data[-50:]
 
         self.ax1.clear()
         self.ax1.plot(self.x_axis_data, self.y_axis_data)
@@ -185,6 +191,7 @@ class ServoControl(object):
         self.transmit_packet('Present Position', -1, read, servo_id)
 
     ##        self.transmit_packet('Moving Status', -1, read, servo_id)
+    ##        self.transmit_packet('Moving Status', -1, read, servo_id)
     ##        servos.transmit_packet('Goal Position',  1140, write, 2)
 
     def animate(self):
@@ -198,68 +205,86 @@ if __name__ == '__main__':
     write = 0x03
     reboot = 0x08
     clear = 0x10
-    servo_id = 2
+    servo_id = 3
     # Servo_1_Limits: 1536(left), 1024 (mid), 512(right)
     # Servo_2_Limits: 3072(left), 2048 (mid), 1536(right)
     ids = [1, 2, 3]
     servos = ServoControl()
     servos.pin_setup()
     servos.serial_setup()
-
     for servo_id in ids:
         servos.transmit_packet('LED', 1, write, servo_id)
         # 25
-        servos.transmit_packet('Profile Velocity', 60, write, servo_id)  # 60 x 0.229 = 13.74 rpm
-        servos.transmit_packet('Profile Acceleration', 10, write, servo_id)  # 10
-        servos.transmit_packet('Position P Gain', 640, write, servo_id)  # 640    -> K/128   Kp = 5   1500/5 = 300
-        servos.transmit_packet('Position D Gain', 4000, write, servo_id)  # 6000  -> K/16    Kd = 375
-        servos.transmit_packet('Position I Gain', 75, write, servo_id)  # 100  -> K/65536     Ki = 0.001
+        servos.transmit_packet('Profile Velocity', 20, write, servo_id)  # 60 x 0.229 = 13.74 rpm
+        servos.transmit_packet('Profile Acceleration', 5, write, servo_id)  # 10
+        servos.transmit_packet('Position P Gain', 640, write,
+                               servo_id)  # 640    -> K/128   Kp = 5   1500/5 = 300    1500
+        servos.transmit_packet('Position D Gain', 4000, write,
+                               servo_id)  # 4000  -> K/16    Kd = 375                 25000
+        servos.transmit_packet('Position I Gain', 75, write, servo_id)  # 75  -> K/65536     Ki = 0.001               50
+        servos.transmit_packet('Feedforward 2nd Gain', 10000, write, servo_id)
+        servos.transmit_packet('Feedforward 1st Gain', 1000, write, servo_id)
         servos.transmit_packet('Torque Enable', 1, write, servo_id)
-    servos.transmit_packet('Goal Position', 2048, write, 3)
-    time.sleep(8)
     servos.transmit_packet('Goal Position', 1024, write, 1)
     time.sleep(5)
+    servos.transmit_packet('Goal Position', 1070, write, 2)
+    time.sleep(5)
     servos.transmit_packet('Goal Position', 2048, write, 2)
-    time.sleep(8)
-    servos.transmit_packet('Present Position', -1, read, 2)
-    servos.transmit_packet('Goal Position', 1229, write, 1)
-    time.sleep(5)
-    servos.transmit_packet('Present Position', -1, read, 1)
-    servos.transmit_packet('Goal Position', 1150, write, 2)
-    time.sleep(8)
-    servos.transmit_packet('Present Position', -1, read, 2)
-    servos.transmit_packet('Goal Position', 3120, write, 3)
-    time.sleep(5)
-    servos.transmit_packet('Present Position', -1, read, 3)
-    servos.transmit_packet('Goal Position', 1536, write, 2)
-    time.sleep(8)
-    servos.transmit_packet('Present Position', -1, read, 2)
-    servos.transmit_packet('Goal Position', 741, write, 1)
-    time.sleep(5)
-    servos.transmit_packet('Present Position', -1, read, 1)
-    servos.transmit_packet('Goal Position', 1170, write, 2)
-    time.sleep(8)
-    servos.transmit_packet('Present Position', -1, read, 2)
-    servos.transmit_packet('Goal Position', 2048, write, 3)
-    time.sleep(8)
-    servos.transmit_packet('Present Position', -1, read, 3)
-    servos.transmit_packet('Goal Position', 1024, write, 1)
-    time.sleep(5)
-    servos.transmit_packet('Present Position', -1, read, 1)
-    servos.transmit_packet('Goal Position', 2048, write, 2)
-    time.sleep(8)
-    servos.transmit_packet('Present Position', -1, read, 2)
-##    servos.animate()
+    ##        time.sleep(8)
+    ##        servos.transmit_packet('Goal Position', 1536, write, 2)
+    ##        time.sleep(8)
+    ##        servos.transmit_packet('Goal Position', 2048, write, 2)
+    ##        time.sleep(8)
+    ##        servos.transmit_packet('Goal Position', 1170, write, 2)
+    ##        time.sleep(8)
+    ##        servos.transmit_packet('Goal Position', 2048, write, 2)
+    ##    servos.transmit_packet('Goal Position',  2048, write, 3)
+    ##    time.sleep(8)
+    ##    servos.transmit_packet('Moving Status', -1, read, 3)
 
+    ##    servos.transmit_packet('Moving Status', -1, read, 1)
+    ##    servos.transmit_packet('Goal Position',  2048, write, 2)
+    ##    time.sleep(8)
+    ##    servos.transmit_packet('Moving Status', -1, read, 2)
+    ##    servos.transmit_packet('Present Position', -1, read, 2)
 
-# Position 1
-# Servo_1: 1229
-# Servo_2: 1140
-# Servo_3: 3120
-# Position 2
-# Servo_1: 741
-# Servo_2: 1140
-# Servo_3: 3120
+    ##    servos.transmit_packet('Goal Position',  1229, write, 1)
+    ##    time.sleep(5)
+    ##    servos.transmit_packet('Present Position', -1, read, 1)
+    ##    servos.transmit_packet('Goal Position', 1150, write, 2)
+    ##    time.sleep(8)
+    ##    servos.transmit_packet('Present Position', -1, read, 2)
+    ##    servos.transmit_packet('Goal Position',  3120, write, 3)
+    ##    time.sleep(5)
+    ##    servos.transmit_packet('Present Position', -1, read, 3)
+    ##    servos.transmit_packet('Goal Position', 1536, write, 2)
+    ##    time.sleep(8)
+    ##    servos.transmit_packet('Present Position', -1, read, 2)
+    ##    servos.transmit_packet('Goal Position',  741, write, 1)
+    ##    time.sleep(5)
+    ##    servos.transmit_packet('Present Position', -1, read, 1)
+    ##    servos.transmit_packet('Goal Position', 1170, write, 2)
+    ##    time.sleep(8)
+    ##    servos.transmit_packet('Present Position', -1, read, 2)
+    ##    servos.transmit_packet('Goal Position',  2048, write, 3)
+    ##    time.sleep(8)
+    ##    servos.transmit_packet('Present Position', -1, read, 3)
+    ##    servos.transmit_packet('Goal Position',  1024, write, 1)
+    ##    time.sleep(5)
+    ##    servos.transmit_packet('Present Position', -1, read, 1)
+    ##    servos.transmit_packet('Goal Position',  2048, write, 2)
+    ##    time.sleep(8)
+    ##    servos.transmit_packet('Present Position', -1, read, 2)
+    servos.animate()
+
+    # Position 1
+    # Servo_1: 1229
+    # Servo_2: 1140
+    # Servo_3: 3120
+    # Position 2
+    # Servo_1: 741
+    # Servo_2: 1140
+    # Servo_3: 3120
 ##    servos.transmit_packet('LED', 1, write, servo_id)
 ##    servos.transmit_packet('Profile Velocity', 60, write, servo_id) # 60 x 0.229 = 13.74 rpm
 ##    servos.transmit_packet('Profile Acceleration', 10, write, servo_id)

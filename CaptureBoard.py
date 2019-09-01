@@ -1,8 +1,9 @@
 import numpy as np
 import cv2
 import math
-# import ASUS.GPIO as GPIO
+import ASUS.GPIO as GPIO
 import time
+import copy
 
 
 class CaptureBoard(object):
@@ -23,6 +24,7 @@ class CaptureBoard(object):
         GPIO.setup(21, GPIO.OUT)  # Green LED output
 
     def calibrate_board(self, cap):
+        self.corner_coordinates = []
         ret, frame = cap.read()
         grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Convert image to greyscale
         img_cal = grey
@@ -38,6 +40,7 @@ class CaptureBoard(object):
             if self.corner_coordinates[0][0][0] > 200:
                 self.corner_coordinates.clear()
                 self.calibrate_board(cap)
+            print("Board successfully calibrated")
         else:
             self.calibrate_board(cap)
 
@@ -48,6 +51,10 @@ class CaptureBoard(object):
             cv2.imshow('img1', grey)
             state = GPIO.input(37)
 
+            if cv2.waitKey(30) & 0xFF == ord('c'):
+                self.calibrate_board(cap)
+                valid_move = True
+
             if valid_move:
                 GPIO.output(11, GPIO.LOW)
                 GPIO.output(21, GPIO.HIGH)
@@ -55,12 +62,12 @@ class CaptureBoard(object):
                 GPIO.output(11, GPIO.HIGH)
                 GPIO.output(21, GPIO.LOW)
 
-            if cv2.waitKey(30) & 0xFF == ord('c'):
-                self.calibrate_board(cap)
-
             if state == False:  # Push button pressed by user
+                start_time = time.time()
                 print("Image captured!")
                 time.sleep(.2)
+                elapsed_time = time.time() - start_time
+                print(elapsed_time)
                 self.image_subtraction(grey, valid_move)
                 break
 
@@ -91,6 +98,23 @@ class CaptureBoard(object):
         if predicted_circles is not None:
             print(predicted_circles.shape[1])
             print("Circles found")
+            sorted_circles = []
+            updated_circles = []
+            print("Predicted circles: ", predicted_circles[0])
+            if predicted_circles.shape[1] == 3:
+                for circle in predicted_circles[0]:
+                    sorted_circles.append(circle[0])
+                sorted_circles.sort()
+                print("Sorted circles: ", sorted_circles)
+                middle_piece = sorted_circles[1]
+                print("Middle piece: ", middle_piece)
+                for index, circle in enumerate(predicted_circles[0]):
+                    if circle[0] == middle_piece:
+                        print("Pre deletion: ", circle)
+                        print("index: ", index)
+                        updated_circles = np.delete(predicted_circles[0], index, 0)
+                        predicted_circles = np.array([updated_circles])
+                        print("New predicted circles: ", predicted_circles)
             predicted_circles = np.round(predicted_circles[0, :]).astype("int")
             for (x, y, r,) in predicted_circles:
                 cv2.circle(img_sub, (x, y), r, (0, 255, 0), 1)
