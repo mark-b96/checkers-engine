@@ -1,6 +1,5 @@
 import serial
 import crcmod
-import struct
 import ASUS.GPIO as GPIO
 import time
 from Registers import Registers
@@ -53,15 +52,13 @@ class ServoControl(object):
         crc = crc_fun(bytes(packet))  # Convert binary value to byte_count
         packet.extend(struct.pack('<H', crc))
 
-    ##        print('Packet: ' + ":".join("{:02x}".format(c) for c in packet))
-
     @staticmethod
     def calculate_parameters(command, position):
         r = Registers()
         address = r.get_address(command)
-        ##        print("Address:", address)
+        print("Address:", address)
         byte_count = r.get_bytes(command)
-        ##        print("Byte count: ", byte_count)
+        print("Byte count: ", byte_count)
         parameter_1 = address  # Low-order byte from the starting address
         parameter_2 = 0x00  # High-order byte from the starting address
         if position == 1:
@@ -104,9 +101,44 @@ class ServoControl(object):
                 parameters = [parameter_1, parameter_2, parameter_3]
         return parameters
 
+    @staticmethod
+    def get_sync_parameters(command, id_1, id_2, pos_1, pos_2):
+        r = Registers()
+        address = r.get_address(command)
+        byte_count = r.get_bytes(command)
+        parameter_1 = address  # Low-order byte from the starting address
+        parameter_2 = 0x00  # High-order byte from the starting address
+        parameter_3 = byte_count
+        parameter_4 = 0x00
+        parameter_5 = id_1
+        desired_value = hex(pos_1)[2:].zfill(byte_count * 2)
+        parameter_6 = int(desired_value[6:8], 16)  # First Byte
+        parameter_7 = int(desired_value[4:6], 16)  # Second Byte
+        parameter_8 = int(desired_value[2:4], 16)  # Third Byte
+        parameter_9 = int(desired_value[:2], 16)  # Forth Byte
+        parameter_10 = id_2
+        desired_value = hex(pos_2)[2:].zfill(byte_count * 2)
+        parameter_11 = int(desired_value[6:8], 16)  # First Byte
+        parameter_12 = int(desired_value[4:6], 16)  # Second Byte
+        parameter_13 = int(desired_value[2:4], 16)  # Third Byte
+        parameter_14 = int(desired_value[:2], 16)  # Forth Byte
+
+        parameters = [parameter_1, parameter_2, parameter_3, parameter_4,
+                      parameter_5, parameter_6, parameter_7, parameter_8,
+                      parameter_9, parameter_10, parameter_11, parameter_12,
+                      parameter_13, parameter_14]
+        return parameters
+
     def transmit_packet(self, command, position, operation, servo_id):
-        parameters = self.calculate_parameters(command, position)
-        ##        print("PARAM", parameters)
+        if operation == 0x83:
+            ##            parameters = self.get_sync_parameters(command, 2, 3,2613, 1512)
+            ##            parameters = self.get_sync_parameters(command, 2, 3,2506, 1578)
+            parameters = self.get_sync_parameters(command, 2, 3, 2048, 2048)
+        ##            parameters = self.get_sync_parameters(command, 2, 3,2694, 1421)
+        ##            parameters = self.get_sync_parameters(command, 2, 3,2607, 1482)
+        else:
+            parameters = self.calculate_parameters(command, position)
+
         packet = self.generate_packet(servo_id, operation, parameters)
         try:
             GPIO.output(self.direction_pin, GPIO.HIGH)
@@ -128,10 +160,8 @@ class ServoControl(object):
         position = 0
         self.serial_connection.flushOutput()
         header = self.serial_connection.read(3)
-        print("Header: ", header)
         body = self.serial_connection.read(5)
         parameter_count = body[2] - 4
-        print("Parameter count: ", parameter_count)
         error = self.serial_connection.read(1)
         print("Error: ", error)
         character_format = "<B"
@@ -167,6 +197,9 @@ class ServoControl(object):
         self.x_axis_data.append(time_axis)
         if position_reading:
             self.y_axis_data.append(position_reading)
+            if position_reading == 2694 or position_reading == 2048 \
+                    or position_reading == 2607:
+                print("Settling time: ", time_axis)
         else:
             self.y_axis_data.append(0)
 
@@ -205,31 +238,76 @@ if __name__ == '__main__':
     write = 0x03
     reboot = 0x08
     clear = 0x10
+    sync_write = 131
     servo_id = 3
+    sync_id = 0xFE
     # Servo_1_Limits: 1536(left), 1024 (mid), 512(right)
     # Servo_2_Limits: 3072(left), 2048 (mid), 1536(right)
-    ids = [1, 2, 3]
+    ids = [1, 2, 3, 4]
     servos = ServoControl()
     servos.pin_setup()
     servos.serial_setup()
-    for servo_id in ids:
-        servos.transmit_packet('LED', 1, write, servo_id)
-        # 25
-        servos.transmit_packet('Profile Velocity', 20, write, servo_id)  # 60 x 0.229 = 13.74 rpm
-        servos.transmit_packet('Profile Acceleration', 5, write, servo_id)  # 10
-        servos.transmit_packet('Position P Gain', 640, write,
-                               servo_id)  # 640    -> K/128   Kp = 5   1500/5 = 300    1500
-        servos.transmit_packet('Position D Gain', 4000, write,
-                               servo_id)  # 4000  -> K/16    Kd = 375                 25000
-        servos.transmit_packet('Position I Gain', 75, write, servo_id)  # 75  -> K/65536     Ki = 0.001               50
-        servos.transmit_packet('Feedforward 2nd Gain', 10000, write, servo_id)
-        servos.transmit_packet('Feedforward 1st Gain', 1000, write, servo_id)
-        servos.transmit_packet('Torque Enable', 1, write, servo_id)
-    servos.transmit_packet('Goal Position', 1024, write, 1)
-    time.sleep(5)
-    servos.transmit_packet('Goal Position', 1070, write, 2)
-    time.sleep(5)
-    servos.transmit_packet('Goal Position', 2048, write, 2)
+    ##    servos.transmit_packet('Torque Enable', 0, write, 2)
+    ##    servos.transmit_packet('Max Position Limit',3072, write, 2)
+    ##    servos.transmit_packet('Min Position Limit',2048, write, 2)
+    ##    servos.transmit_packet('Torque Enable', 0, write, 3)
+    ##    servos.transmit_packet('Max Position Limit',2048, write, 3)
+    ##    servos.transmit_packet('Min Position Limit',1024, write, 3)
+    ##    for servo_id in ids:
+    ##        servos.transmit_packet('LED', 1, write, servo_id)
+    ##        # V = 20, A = 5
+    ##        servos.transmit_packet('Profile Velocity', 20, write, servo_id) # 60 x 0.229 = 13.74 rpm
+    ##        servos.transmit_packet('Profile Acceleration', 5, write, servo_id) # 10
+    ##        servos.transmit_packet('Position P Gain', 640, write, servo_id) # 640    -> K/128   Kp = 5   1500/5 = 300    1500
+    ##        # D = 5000
+    ##        servos.transmit_packet('Position D Gain', 6000, write, servo_id) # 4000  -> K/16    Kd = 375                 25000
+    ##        # I = 2000
+    ##        servos.transmit_packet('Position I Gain', 2000, write, servo_id) # 75  -> K/65536     Ki = 0.001               50
+    ####        servos.transmit_packet('Feedforward 2nd Gain', 0, write, servo_id)
+    ####        servos.transmit_packet('Feedforward 1st Gain', 0, write, servo_id)
+    ##        servos.transmit_packet('Torque Enable', 1, write, servo_id)
+
+    ##    servos.transmit_packet('Feedforward 2nd Gain', -1, read, 2)
+
+    ##    servos.transmit_packet('Torque Enable', 0, write, 4)
+
+    ##    servos.transmit_packet('Goal Position', 2048, write, 2)
+    ##    time.sleep(10)
+    ##    servos.transmit_packet('Goal Position', 2048, write, 3)
+    ##    servos.transmit_packet('Goal Position', 3072, write, 4)
+    ##    time.sleep(10)
+    ##    servos.transmit_packet('Goal Position', 2048, write, 2)
+    ##    time.sleep(10)
+    ##    servos.transmit_packet('Goal Position', 2120, write, 4)
+    ##    time.sleep(10)
+    ##    servos.transmit_packet('Goal Position', 2048, write, 1)
+    ##    time.sleep(15)
+    servos.transmit_packet('Goal Position', 2048, sync_write, sync_id)
+
+    ##    time.sleep(5)
+    ##
+    ####    servos.animate()
+
+    ##
+    ##    servos.transmit_packet('Torque Enable', 0, write, 1)
+    ##    servos.transmit_packet('Torque Enable', 0, write, 2)
+    ##    servos.transmit_packet('Torque Enable', 0, write, 3)
+    ##    servos.transmit_packet('Torque Enable', 0, write, 4)
+    ####
+    ##    while 1:
+    ##        print("ELBOW SERVO")
+    ##        servos.transmit_packet('Present Position', -1, read, 1)
+    ##        print("SHOULDER SERVO 1")
+    ##        servos.transmit_packet('Present Position', -1, read, 2)
+    ##        print("SHOULDER SERVO 2")
+    ##        servos.transmit_packet('Present Position', -1, read, 3)
+    ##        print("WAIST SERVO")
+    ##        servos.transmit_packet('Present Position', -1, read, 4)
+    ##        time.sleep(10)
+    ##    time.sleep(5)
+    ##    servos.transmit_packet('Goal Position', 1070, write, 2)
+    ##    time.sleep(5)
+    ##    servos.transmit_packet('Goal Position', 2048, write, 2)
     ##        time.sleep(8)
     ##        servos.transmit_packet('Goal Position', 1536, write, 2)
     ##        time.sleep(8)
@@ -275,7 +353,7 @@ if __name__ == '__main__':
     ##    servos.transmit_packet('Goal Position',  2048, write, 2)
     ##    time.sleep(8)
     ##    servos.transmit_packet('Present Position', -1, read, 2)
-    servos.animate()
+    ##    servos.animate()
 
     # Position 1
     # Servo_1: 1229
@@ -285,17 +363,17 @@ if __name__ == '__main__':
     # Servo_1: 741
     # Servo_2: 1140
     # Servo_3: 3120
-##    servos.transmit_packet('LED', 1, write, servo_id)
-##    servos.transmit_packet('Profile Velocity', 60, write, servo_id) # 60 x 0.229 = 13.74 rpm
-##    servos.transmit_packet('Profile Acceleration', 10, write, servo_id)
-##    servos.transmit_packet('Present Load', -1, read, servo_id)
-####    servos.transmit_packet('Present Input Voltage', -1, read, servo_id)
-##    servos.transmit_packet('Position P Gain', 600, write, servo_id)
-##    servos.transmit_packet('Position D Gain', 2000, write, servo_id)
-##    servos.transmit_packet('Position I Gain', 75, write, servo_id)
-##    servos.transmit_packet('Torque Enable', 1, write, servo_id)
-##    servos.transmit_packet('Goal Position',  2048, write, servo_id)
-##    servos.transmit_packet('Present Position', -1, read, servo_id)
-##    servos.transmit_packet('Present Position', -1, read, servo_id)
-##    servos.transmit_packet('Present Position', -1, read, servo_id)
-##    servos.terminate_serial()
+    ##    servos.transmit_packet('LED', 1, write, servo_id)
+    ##    servos.transmit_packet('Profile Velocity', 60, write, servo_id) # 60 x 0.229 = 13.74 rpm
+    ##    servos.transmit_packet('Profile Acceleration', 10, write, servo_id)
+    ##    servos.transmit_packet('Present Load', -1, read, servo_id)
+    ####    servos.transmit_packet('Present Input Voltage', -1, read, servo_id)
+    ##    servos.transmit_packet('Position P Gain', 600, write, servo_id)
+    ##    servos.transmit_packet('Position D Gain', 2000, write, servo_id)
+    ##    servos.transmit_packet('Position I Gain', 75, write, servo_id)
+    ##    servos.transmit_packet('Torque Enable', 1, write, servo_id)
+    ##    servos.transmit_packet('Goal Position',  2048, write, servo_id)
+    ##    servos.transmit_packet('Present Position', -1, read, servo_id)
+    ##    servos.transmit_packet('Present Position', -1, read, servo_id)
+    ##    servos.transmit_packet('Present Position', -1, read, servo_id)
+    servos.terminate_serial()
