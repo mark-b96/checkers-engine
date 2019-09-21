@@ -20,13 +20,17 @@ class ServoControl(object):
         self.write = 0x03
         self.sync_read = 0x82
         self.sync_write = 0x83
+        self.bulk_read = 0x92
+        self.bulk_write = 0x93
         self.sync_id = 0xFE
+        self.broadcast_id = 0xFE
         self.x_axis_data = [0]
         self.y_axis_data = [0]
         self.live_plot = plt.figure()
         self.ax1 = self.live_plot.add_subplot(1, 1, 1)
         self.start_time = 0
         self.servo_ids = [1, 2, 3, 4]
+        self.goal_positions = [2048, 2048, 2048, 2048]
 
     def pin_setup(self):
         GPIO.setmode(GPIO.BOARD)
@@ -70,7 +74,7 @@ class ServoControl(object):
             parameter_3 = 0x00  # Turn off
 
         if position == 3:
-            parameter_3 = 0x03  # Baud Rate = 1000000
+            parameter_3 = 0x03
 
         if position == -1:
             parameter_3 = byte_count
@@ -100,41 +104,28 @@ class ServoControl(object):
                 parameters = [parameter_1, parameter_2, parameter_3]
         return parameters
 
-    @staticmethod
-    def get_sync_parameters(command, id_1, id_2, pos_1, pos_2):
+    def get_sync_parameters(self, command):
         r = Registers()
         address = r.get_address(command)
         byte_count = r.get_bytes(command)
-        parameter_1 = address  # Low-order byte from the starting address
-        parameter_2 = 0x00  # High-order byte from the starting address
-        parameter_3 = byte_count
-        parameter_4 = 0x00
-        parameter_5 = id_1
-        desired_value = hex(pos_1)[2:].zfill(byte_count * 2)
-        parameter_6 = int(desired_value[6:8], 16)  # First Byte
-        parameter_7 = int(desired_value[4:6], 16)  # Second Byte
-        parameter_8 = int(desired_value[2:4], 16)  # Third Byte
-        parameter_9 = int(desired_value[:2], 16)  # Forth Byte
-        parameter_10 = id_2
-        desired_value = hex(pos_2)[2:].zfill(byte_count * 2)
-        parameter_11 = int(desired_value[6:8], 16)  # First Byte
-        parameter_12 = int(desired_value[4:6], 16)  # Second Byte
-        parameter_13 = int(desired_value[2:4], 16)  # Third Byte
-        parameter_14 = int(desired_value[:2], 16)  # Forth Byte
+        parameters = []
+        for servo, position in zip(self.servo_ids, self.goal_positions):
+            parameters.append(address)  # Low-order byte from the starting address
+            parameters.append(0x00)  # High-order byte from the starting address
+            parameters.append(byte_count)
+            parameters.append(0x00)
+            parameters.append(servo)  # Servo ID
+            desired_value = hex(position)[2:].zfill(byte_count * 2)  # Goal position
+            parameters.append(int(desired_value[6:8], 16))  # First Byte
+            parameters.append(int(desired_value[4:6], 16))  # Second Byte
+            parameters.append(int(desired_value[2:4], 16))  # Third Byte
+            parameters.append(int(desired_value[:2], 16))  # Fourth Byte
 
-        parameters = [parameter_1, parameter_2, parameter_3, parameter_4,
-                      parameter_5, parameter_6, parameter_7, parameter_8,
-                      parameter_9, parameter_10, parameter_11, parameter_12,
-                      parameter_13, parameter_14]
         return parameters
 
     def transmit_packet(self, command, position, operation, servo_id):
         if operation == 0x83:
-            ##            parameters = self.get_sync_parameters(command, 2, 3,2613, 1512)
-            ##            parameters = self.get_sync_parameters(command, 2, 3,2506, 1578)
-            parameters = self.get_sync_parameters(command, 2, 3, 2048, 2048)
-        ##            parameters = self.get_sync_parameters(command, 2, 3,2694, 1421)
-        ##            parameters = self.get_sync_parameters(command, 2, 3,2607, 1482)
+            parameters = self.get_sync_parameters(command)
         else:
             parameters = self.calculate_parameters(command, position)
 
@@ -218,20 +209,19 @@ class ServoControl(object):
         animation.FuncAnimation(self.live_plot, self.get_reading, interval=1)
         plt.show()
 
-    def initialise_servos(self, servo_ids):
-        for servo_id in servo_ids:
-            self.transmit_packet('LED', 1, self.write, servo_id)
-            # V = 20, A = 5, 60 x 0.229 = 13.74 rpm
-            self.transmit_packet('Profile Velocity', 20, self.write, servo_id)
-            self.transmit_packet('Profile Acceleration', 5, self.write, servo_id)
-            self.transmit_packet('Position P Gain', 640, self.write, servo_id)
-            # D = 5000
-            self.transmit_packet('Position D Gain', 6000, self.write, servo_id)
-            # I = 2000
-            self.transmit_packet('Position I Gain', 2000, self.write, servo_id)
-            # servos.transmit_packet('Feedforward 2nd Gain', 0, self.write, servo_id)
-            # servos.transmit_packet('Feedforward 1st Gain', 0, self.write, servo_id)
-            self.transmit_packet('Torque Enable', 1, self.write, servo_id)
+    def initialise_servos(self):
+        self.transmit_packet('LED', 1, self.write, self.broadcast_id)
+        # V = 20, A = 5, 60 x 0.229 = 13.74 rpm
+        self.transmit_packet('Profile Velocity', 20, self.write, self.broadcast_id)
+        self.transmit_packet('Profile Acceleration', 5, self.write, self.broadcast_id)
+        self.transmit_packet('Position P Gain', 640, self.write, self.broadcast_id)
+        # D = 5000
+        self.transmit_packet('Position D Gain', 6000, self.write, self.broadcast_id)
+        # I = 2000
+        self.transmit_packet('Position I Gain', 2000, self.write, self.broadcast_id)
+        # servos.transmit_packet('Feedforward 2nd Gain', 0, self.write, self.broadcast_id)
+        # servos.transmit_packet('Feedforward 1st Gain', 0, self.write, self.broadcast_id)
+        self.transmit_packet('Torque Enable', 1, self.write, self.broadcast_id)
 
     def set_servo_limits(self):
         self.transmit_packet('Torque Enable', 0, self.write, 2)
@@ -242,10 +232,7 @@ class ServoControl(object):
         self.transmit_packet('Min Position Limit', 1024, self.write, 3)
 
     def learn_positions(self):
-        self.transmit_packet('Torque Enable', 0, self.write, 1)
-        self.transmit_packet('Torque Enable', 0, self.write, 2)
-        self.transmit_packet('Torque Enable', 0, self.write, 3)
-        self.transmit_packet('Torque Enable', 0, self.write, 4)
+        self.transmit_packet('Torque Enable', 0, self.write, self.broadcast_id)
 
         while 1:
             print("ELBOW SERVO")
@@ -259,7 +246,7 @@ class ServoControl(object):
             time.sleep(10)
 
     def actuate_robot_arm(self):
-        servos.initialise_servos(self.servo_ids)
+        servos.initialise_servos()
         servos.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
         servos.animate()
 

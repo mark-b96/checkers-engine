@@ -84,8 +84,7 @@ class Game(object):
                     piece_colour = True
                 if piece_colour == self.white_turn:
                     print("Getting legal moves")
-                    legal_moves = self.board.possible_moves(selected_square)
-                    # print("Legal Moves", legal_moves)
+                    self.board.possible_moves(selected_square)
                     self.selected_piece = selected_square
                     selected_square = None
                 else:
@@ -94,8 +93,8 @@ class Game(object):
                 self.target_square = selected_square
 
         if self.selected_piece and self.target_square:
-            return True
             print("Move validated")
+            return True
         else:
             return False
 
