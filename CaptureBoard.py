@@ -68,7 +68,7 @@ class CaptureBoard(object):
                 GPIO.output(7, GPIO.HIGH)
                 GPIO.output(21, GPIO.LOW)
 
-            if state == False or ai_move:  # Push button pressed by user/ robot's turn
+            if state is False or ai_move:  # Push button pressed by user/ robot's turn
                 start_time = time.time()
                 print("Image captured!")
                 time.sleep(.2)
