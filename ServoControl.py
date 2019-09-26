@@ -12,6 +12,12 @@ class ServoControl(object):
     def __init__(self):
         self.baud_rate = 1000000
         self.direction_pin = 12
+        self.wrist_pin = 22
+        self.wrist_pwm = None
+        self.gripper_pin = 18
+        self.gripper_pwm = None
+        self.wrist_angle = 90
+        self.wrist_dc = (0.0625 * self.wrist_angle) + 2.95
         self.serial_port = '/dev/ttyS1'
         self.timeout = 0.05
         self.serial_connection = None
@@ -30,11 +36,19 @@ class ServoControl(object):
         self.ax1 = self.live_plot.add_subplot(1, 1, 1)
         self.start_time = 0
         self.servo_ids = [1, 2, 3, 4]
-        self.goal_positions = [2048, 2048, 2048, 2048]
+        self.goal_positions = []
 
     def pin_setup(self):
         GPIO.setmode(GPIO.BOARD)
         GPIO.setup(self.direction_pin, GPIO.OUT)
+        GPIO.setup(self.gripper_pin, GPIO.OUT)
+        GPIO.setup(self.wrist_pin, GPIO.OUT)
+        GPIO.output(self.gripper_pin, GPIO.HIGH)
+        GPIO.output(self.wrist_pin, GPIO.HIGH)
+        self.gripper_pwm = GPIO.PWM(self.gripper_pin, 61.3)
+        self.wrist_pwm = GPIO.PWM(self.wrist_pin, 61.3)
+        self.gripper_pwm.start(7.603)
+        self.wrist_pwm.start(self.wrist_dc)
         GPIO.setwarnings(False)
 
     def serial_setup(self):
@@ -109,11 +123,11 @@ class ServoControl(object):
         address = r.get_address(command)
         byte_count = r.get_bytes(command)
         parameters = []
+        parameters.append(address)  # Low-order byte from the starting address
+        parameters.append(0x00)  # High-order byte from the starting address
+        parameters.append(byte_count)
+        parameters.append(0x00)
         for servo, position in zip(self.servo_ids, self.goal_positions):
-            parameters.append(address)  # Low-order byte from the starting address
-            parameters.append(0x00)  # High-order byte from the starting address
-            parameters.append(byte_count)
-            parameters.append(0x00)
             parameters.append(servo)  # Servo ID
             desired_value = hex(position)[2:].zfill(byte_count * 2)  # Goal position
             parameters.append(int(desired_value[6:8], 16))  # First Byte
@@ -171,9 +185,10 @@ class ServoControl(object):
         crc_1 = self.serial_connection.read(1)
         crc_2 = self.serial_connection.read(1)
         ##        print("CRCs: ",crc_1, crc_2)
-        print("Position: ", position)
+        #        print("Position: ", position)
         if position:
-            self.draw_graph(position)
+            print("Position: ", position)
+        #            self.draw_graph(position)
         else:
             print("No Position")
 
@@ -184,7 +199,7 @@ class ServoControl(object):
         self.x_axis_data.append(time_axis)
         if position_reading:
             self.y_axis_data.append(position_reading)
-            if position_reading == 2694 or position_reading == 2048 \
+            if position_reading == 2615 or position_reading == 2048 \
                     or position_reading == 2607:
                 print("Settling time: ", time_axis)
         else:
@@ -194,11 +209,13 @@ class ServoControl(object):
             self.x_axis_data = self.x_axis_data[-50:]
             self.y_axis_data = self.y_axis_data[-50:]
 
-        self.ax1.clear()
-        self.ax1.plot(self.x_axis_data, self.y_axis_data)
+    #        self.ax1.clear()
+    #        self.ax1.plot(self.x_axis_data, self.y_axis_data)
 
     def terminate_serial(self):
         self.serial_connection.close()
+        self.gripper_pwm.stop()
+        self.wrist_pwm.stop()
         GPIO.cleanup()
 
     def get_reading(self, i):
@@ -212,13 +229,13 @@ class ServoControl(object):
     def initialise_servos(self):
         self.transmit_packet('LED', 1, self.write, self.broadcast_id)
         # V = 20, A = 5, 60 x 0.229 = 13.74 rpm
-        self.transmit_packet('Profile Velocity', 20, self.write, self.broadcast_id)
-        self.transmit_packet('Profile Acceleration', 5, self.write, self.broadcast_id)
+        self.transmit_packet('Profile Velocity', 40, self.write, self.broadcast_id)
+        self.transmit_packet('Profile Acceleration', 10, self.write, self.broadcast_id)
         self.transmit_packet('Position P Gain', 640, self.write, self.broadcast_id)
         # D = 5000
-        self.transmit_packet('Position D Gain', 6000, self.write, self.broadcast_id)
+        self.transmit_packet('Position D Gain', 4000, self.write, self.broadcast_id)
         # I = 2000
-        self.transmit_packet('Position I Gain', 2000, self.write, self.broadcast_id)
+        self.transmit_packet('Position I Gain', 400, self.write, self.broadcast_id)
         # servos.transmit_packet('Feedforward 2nd Gain', 0, self.write, self.broadcast_id)
         # servos.transmit_packet('Feedforward 1st Gain', 0, self.write, self.broadcast_id)
         self.transmit_packet('Torque Enable', 1, self.write, self.broadcast_id)
@@ -245,15 +262,33 @@ class ServoControl(object):
             self.transmit_packet('Present Position', -1, self.read, 4)
             time.sleep(10)
 
+    def wrist_duty_cycle(self, wrist_angle):
+        return (0.0625 * wrist_angle) + 2.95
+
+    def actuate_gripper(self, angle):
+        self.wrist_pwm.ChangeDutyCycle(self.wrist_duty_cycle(angle))
+        self.gripper_pwm.ChangeDutyCycle(7.603)
+        time.sleep(5)
+        self.gripper_pwm.ChangeDutyCycle(10.644)
+
     def actuate_robot_arm(self):
-        servos.initialise_servos()
-        servos.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-        servos.animate()
+        #        self.learn_positions()
+        while 1:
+            self.actuate_gripper(45)
+            self.goal_positions = [1013, 2048, 2048, 2121]
+            self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+            time.sleep(10)
+            self.goal_positions = [1050, 2615, 1528, 2119]
+            self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+            self.animate()
+            time.sleep(10)
+            self.actuate_gripper(135)
 
 
 if __name__ == '__main__':
     servos = ServoControl()
     servos.pin_setup()
     servos.serial_setup()
+    servos.initialise_servos()
     servos.actuate_robot_arm()
     servos.terminate_serial()
