@@ -16,8 +16,6 @@ class ServoControl(object):
         self.wrist_pwm = None
         self.gripper_pin = 18
         self.gripper_pwm = None
-        self.wrist_angle = 90
-        self.wrist_dc = (0.0625 * self.wrist_angle) + 2.95
         self.serial_port = '/dev/ttyS1'
         self.timeout = 0.05
         self.serial_connection = None
@@ -48,7 +46,7 @@ class ServoControl(object):
         self.gripper_pwm = GPIO.PWM(self.gripper_pin, 61.3)
         self.wrist_pwm = GPIO.PWM(self.wrist_pin, 61.3)
         self.gripper_pwm.start(7.603)
-        self.wrist_pwm.start(self.wrist_dc)
+        self.wrist_pwm.start(self.wrist_duty_cycle(45))
         GPIO.setwarnings(False)
 
     def serial_setup(self):
@@ -118,7 +116,7 @@ class ServoControl(object):
                 parameters = [parameter_1, parameter_2, parameter_3]
         return parameters
 
-    def get_sync_parameters(self, command):
+    def get_write_sync_parameters(self, command):
         r = Registers()
         address = r.get_address(command)
         byte_count = r.get_bytes(command)
@@ -137,9 +135,26 @@ class ServoControl(object):
 
         return parameters
 
+    def get_read_sync_parameters(self, command):
+        r = Registers()
+        address = r.get_address(command)
+        byte_count = r.get_bytes(command)
+        parameters = []
+        parameters.append(address)  # Low-order byte from the starting address
+        parameters.append(0x00)  # High-order byte from the starting address
+        parameters.append(byte_count)
+        parameters.append(0x00)
+
+        for servo in self.servo_ids:
+            parameters.append(servo)  # Servo ID
+
+        return parameters
+
     def transmit_packet(self, command, position, operation, servo_id):
-        if operation == 0x83:
-            parameters = self.get_sync_parameters(command)
+        if operation == self.sync_write:  # Sync write
+            parameters = self.get_write_sync_parameters(command)
+        elif operation == self.sync_read:  # Sync Read
+            parameters = self.get_read_sync_parameters(command)
         else:
             parameters = self.calculate_parameters(command, position)
 
@@ -153,7 +168,8 @@ class ServoControl(object):
             time.sleep(0.000001)
             GPIO.output(self.direction_pin, GPIO.LOW)
             time.sleep(0.1)  # Return time delay
-            self.read_packet()
+            for i in range(len(self.servo_ids)):
+                self.read_packet()
             self.serial_connection.flushInput()
         except:
             print("Error occurred")
@@ -230,7 +246,7 @@ class ServoControl(object):
         self.transmit_packet('LED', 1, self.write, self.broadcast_id)
         # V = 20, A = 5, 60 x 0.229 = 13.74 rpm
         self.transmit_packet('Profile Velocity', 40, self.write, self.broadcast_id)
-        self.transmit_packet('Profile Acceleration', 10, self.write, self.broadcast_id)
+        self.transmit_packet('Profile Acceleration', 20, self.write, self.broadcast_id)
         self.transmit_packet('Position P Gain', 640, self.write, self.broadcast_id)
         # D = 5000
         self.transmit_packet('Position D Gain', 4000, self.write, self.broadcast_id)
