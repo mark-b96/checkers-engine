@@ -1,3 +1,4 @@
+#! /usr/bin/python3
 import serial
 import crcmod
 import ASUS.GPIO as GPIO
@@ -6,15 +7,16 @@ from Registers import Registers
 import struct
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import numpy as np
 
 
 class ServoControl(object):
     def __init__(self):
         self.baud_rate = 1000000
         self.direction_pin = 12
-        self.wrist_pin = 22
+        self.wrist_pin = 23
         self.wrist_pwm = None
-        self.gripper_pin = 18
+        self.gripper_pin = 21
         self.gripper_pwm = None
         self.serial_port = '/dev/ttyS1'
         self.timeout = 0.05
@@ -45,8 +47,8 @@ class ServoControl(object):
         GPIO.output(self.wrist_pin, GPIO.HIGH)
         self.gripper_pwm = GPIO.PWM(self.gripper_pin, 61.3)
         self.wrist_pwm = GPIO.PWM(self.wrist_pin, 61.3)
-        self.gripper_pwm.start(7.603)
-        self.wrist_pwm.start(self.wrist_duty_cycle(45))
+        self.gripper_pwm.start(9)
+        self.wrist_pwm.start(self.wrist_duty_cycle(135))
         GPIO.setwarnings(False)
 
     def serial_setup(self):
@@ -168,8 +170,8 @@ class ServoControl(object):
             time.sleep(0.000001)
             GPIO.output(self.direction_pin, GPIO.LOW)
             time.sleep(0.1)  # Return time delay
-            for i in range(len(self.servo_ids)):
-                self.read_packet()
+#            for i in range(len(self.servo_ids)):
+           # self.read_packet()
             self.serial_connection.flushInput()
         except:
             print("Error occurred")
@@ -251,54 +253,120 @@ class ServoControl(object):
         # D = 5000
         self.transmit_packet('Position D Gain', 4000, self.write, self.broadcast_id)
         # I = 2000
-        self.transmit_packet('Position I Gain', 400, self.write, self.broadcast_id)
+        self.transmit_packet('Position I Gain', 300, self.write, self.broadcast_id)
         # servos.transmit_packet('Feedforward 2nd Gain', 0, self.write, self.broadcast_id)
         # servos.transmit_packet('Feedforward 1st Gain', 0, self.write, self.broadcast_id)
         self.transmit_packet('Torque Enable', 1, self.write, self.broadcast_id)
 
     def set_servo_limits(self):
-        self.transmit_packet('Torque Enable', 0, self.write, 2)
-        self.transmit_packet('Max Position Limit', 3072, self.write, 2)
-        self.transmit_packet('Min Position Limit', 2048, self.write, 2)
         self.transmit_packet('Torque Enable', 0, self.write, 3)
-        self.transmit_packet('Max Position Limit', 2048, self.write, 3)
-        self.transmit_packet('Min Position Limit', 1024, self.write, 3)
+        self.transmit_packet('Max Position Limit', 3072, self.write, 3)
+        self.transmit_packet('Min Position Limit', 2048, self.write, 3)
+        self.transmit_packet('Torque Enable', 0, self.write, 2)
+        self.transmit_packet('Max Position Limit', 2048, self.write, 2)
+        self.transmit_packet('Min Position Limit', 1024, self.write, 2)
 
     def learn_positions(self):
         self.transmit_packet('Torque Enable', 0, self.write, self.broadcast_id)
 
         while 1:
-            print("ELBOW SERVO")
+            print("WAIST SERVO")
             self.transmit_packet('Present Position', -1, self.read, 1)
             print("SHOULDER SERVO 1")
             self.transmit_packet('Present Position', -1, self.read, 2)
             print("SHOULDER SERVO 2")
             self.transmit_packet('Present Position', -1, self.read, 3)
-            print("WAIST SERVO")
+            print("ELBOW SERVO")
             self.transmit_packet('Present Position', -1, self.read, 4)
             time.sleep(10)
 
-    def wrist_duty_cycle(self, wrist_angle):
+    @staticmethod
+    def wrist_duty_cycle(wrist_angle):
         return (0.0625 * wrist_angle) + 2.95
 
-    def actuate_gripper(self, angle):
+    def actuate_wrist(self, angle):
         self.wrist_pwm.ChangeDutyCycle(self.wrist_duty_cycle(angle))
+
+    def gripper_suction(self):
         self.gripper_pwm.ChangeDutyCycle(7.603)
-        time.sleep(5)
+
+    def gripper_blow(self):
         self.gripper_pwm.ChangeDutyCycle(10.644)
 
+    def ik_calculations(self):
+        x = 83.125
+        y = 264.375
+        humerus_length = 210
+        radius_length = 165
+        waist_angle = self.calculate_waist_angle(x, y)
+        extension_distance = self.calculate_extension_distance(x, y)
+        print(extension_distance)
+        shoulder_angle = self.calculate_angle(humerus_length, extension_distance, radius_length)
+        elbow_angle = self.calculate_angle(humerus_length, radius_length, extension_distance)
+        wrist_angle = 90-(180 - shoulder_angle - elbow_angle)
+        print("Waist angle: ", waist_angle)
+        print("Shoulder angle: ", shoulder_angle)
+        print("Elbow angle: ", elbow_angle)
+        print("Wrist angle: ", wrist_angle)
+        waist_steps = self.angle_to_steps(waist_angle)*2
+        shoulder_steps = self.angle_to_steps(shoulder_angle)
+        waist_target = waist_steps+2048
+        shoulder_1_target = 2048 - shoulder_steps
+        shoulder_2_target = shoulder_steps+2048
+        elbow_steps = self.angle_to_steps(elbow_angle)
+        elbow_target = 2048 - elbow_steps
+        print("Waist target: ", waist_target)
+        print("Shoulder 1 target: ", shoulder_1_target)
+        print("Shoulder 2 target: ", shoulder_2_target)
+        print("Elbow target: ", elbow_target)
+
+    @staticmethod
+    def calculate_waist_angle(x_coordinate, y_coordinate):
+        return np.rad2deg(np.arctan(x_coordinate/y_coordinate))
+
+    @staticmethod
+    def calculate_extension_distance(x, y):
+        return np.sqrt(x**2 + y**2)
+
+    @staticmethod
+    def calculate_angle(adjacent_side_1, adjacent_side_2, opposite_side):
+        return np.rad2deg(np.arccos((adjacent_side_1**2 + adjacent_side_2**2 - opposite_side**2) / (2*adjacent_side_1*adjacent_side_2)))
+
+    @staticmethod
+    def angle_to_steps(angle):
+        resolution = 360./4096.
+        step_size = 1./resolution
+        return angle*step_size
+
+    def calculate_square_coordinates(self, ):
+
     def actuate_robot_arm(self):
-        #        self.learn_positions()
+        self.gripper_blow()
         while 1:
-            self.actuate_gripper(45)
-            self.goal_positions = [1013, 2048, 2048, 2121]
+            self.goal_positions = [2107, 2048, 2048, 2048]
             self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-            time.sleep(10)
-            self.goal_positions = [1050, 2615, 1528, 2119]
+            self.actuate_wrist(180)
+            time.sleep(5)
+            self.goal_positions = [2467, 1656, 2411, 952]
             self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-            self.animate()
-            time.sleep(10)
-            self.actuate_gripper(135)
+            self.actuate_wrist(45)
+            time.sleep(2)
+            self.goal_positions = [2467, 1605, 2520, 952]
+            self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+            time.sleep(4)
+            self.gripper_suction()
+            self.goal_positions = [2467, 1656, 2411, 1047]
+            self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+            time.sleep(2)
+            self.goal_positions = [2335, 1588, 2501, 1034]
+            self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+            self.actuate_wrist(50)
+            time.sleep(5)
+            self.gripper_blow()
+            time.sleep(3)
+            self.goal_positions = [2335, 1656, 2411, 1034]
+            self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+            time.sleep(2)
 
 
 if __name__ == '__main__':
@@ -306,5 +374,7 @@ if __name__ == '__main__':
     servos.pin_setup()
     servos.serial_setup()
     servos.initialise_servos()
+    # servos.set_servo_limits()
+    # servos.learn_positions()
     servos.actuate_robot_arm()
     servos.terminate_serial()

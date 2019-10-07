@@ -2,6 +2,7 @@ from Board import Board
 from GUI import GUI
 from CaptureBoard import CaptureBoard
 from AI import AI
+from ServoControl import ServoControl
 from anytree import Node
 import time
 
@@ -24,6 +25,10 @@ class Game(object):
         self.capture.calibrate_board(self.cap)
         self.capture.pin_setup()
         self.ai = AI()
+        self.servos = ServoControl()
+        self.servos.pin_setup()
+        self.servos.serial_setup()
+        self.servos.initialise_servos()
         self.depth = 1  # Single move lookahead
         self.game_termination = False
 
@@ -38,6 +43,7 @@ class Game(object):
                     self.board.move_sequence = child.name.move_sequence
         else:
             print("Game over human wins")
+            self.servos.terminate_serial()
             exit(0)
         print(self.board.move_sequence)
         time.sleep(15)
@@ -46,6 +52,7 @@ class Game(object):
         move_sequence = self.capture.calculate_coordinates(circle_coordinates)
         if self.validate_move(move_sequence):
             robot_move = [self.selected_piece.number, self.target_square.number]
+            self.servos.actuate_robot_arm()
             print("Robot move")
             if self.board.move_sequence == robot_move:
                 self.make_move()
@@ -70,6 +77,7 @@ class Game(object):
             self.make_move()
         else:
             print("Game over AI wins")
+            self.servos.terminate_serial()
             exit(0)
 
     def validate_move(self, move_sequence):
