@@ -29,7 +29,7 @@ class Game(object):
         self.servos.pin_setup()
         self.servos.serial_setup()
         self.servos.initialise_servos()
-        self.depth = 1  # Single move lookahead
+        self.depth = 3 # Single move lookahead
         self.game_termination = False
 
     def ai_move(self):
@@ -41,18 +41,19 @@ class Game(object):
             for child in root.children:
                 if child.value == max_value:
                     self.board.move_sequence = child.name.move_sequence
+                    target_1 = [child.name.origin_square.row, child.name.origin_square.column]
+                    target_2 = [child.name.target_square.row, child.name.target_square.column]
         else:
             print("Game over human wins")
             self.servos.terminate_serial()
             exit(0)
         print(self.board.move_sequence)
-        time.sleep(15)
+        self.servos.actuate_robot_arm(target_1, target_2)
         self.capture.capture_image(self.cap, self.valid_move, True)
         circle_coordinates = self.capture.process_image()
         move_sequence = self.capture.calculate_coordinates(circle_coordinates)
         if self.validate_move(move_sequence):
-            robot_move = [self.selected_piece.number, self.target_square.number]
-            self.servos.actuate_robot_arm()
+            robot_move = [self.selected_piece.number, self.target_square.row]
             print("Robot move")
             if self.board.move_sequence == robot_move:
                 self.make_move()
