@@ -4,7 +4,7 @@ Author: Mark Bonney
 import numpy as np
 import cv2
 import math
-# import ASUS.GPIO as GPIO
+import ASUS.GPIO as GPIO
 import time
 
 
