@@ -1,3 +1,7 @@
+"""
+Author: Mark Bonney
+"""
+
 import pygame
 WHITE_SQUARES = (255, 255, 255)
 BLACK_SQUARES = (0, 0, 0)

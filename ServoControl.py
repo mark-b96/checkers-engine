@@ -1,4 +1,7 @@
 #! /usr/bin/python3
+"""
+Author: Mark Bonney
+"""
 import serial
 import crcmod
 # import ASUS.GPIO as GPIO

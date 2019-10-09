@@ -1,3 +1,6 @@
+"""
+Author: Mark Bonney
+"""
 import copy
 from anytree import Node, RenderTree
 

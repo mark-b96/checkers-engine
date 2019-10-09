@@ -1,3 +1,6 @@
+"""
+Author: Mark Bonney
+"""
 from Game import Game
 
 

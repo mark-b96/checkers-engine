@@ -1,3 +1,6 @@
+"""
+Author: Mark Bonney
+"""
 from Board import Board
 from GUI import GUI
 from CaptureBoard import CaptureBoard
@@ -19,16 +22,16 @@ class Game(object):
         self.interface.get_square_coordinates(self.board)
         self.selected_piece = None
         self.target_square = None
-        # self.capture = CaptureBoard()
-        # self.cap = self.capture.initialise_camera()
+        self.capture = CaptureBoard()
+        self.cap = self.capture.initialise_camera()
         time.sleep(2)
-        # self.capture.calibrate_board(self.cap)
-        # self.capture.pin_setup()
+        self.capture.calibrate_board(self.cap)
+        self.capture.pin_setup()
         self.ai = AI()
         self.servos = ServoControl()
-        # self.servos.pin_setup()
-        # self.servos.serial_setup()
-        # self.servos.initialise_servos()
+        self.servos.pin_setup()
+        self.servos.serial_setup()
+        self.servos.initialise_servos()
         self.depth = 1  # Single move lookahead
         self.game_termination = False
 
@@ -51,35 +54,35 @@ class Game(object):
         print(self.board.move_sequence)
         self.servos.actuate_robot_arm(target_1, target_2)
         self.make_move()
-        # self.capture.capture_image(self.cap, self.valid_move, True)
-        # circle_coordinates = self.capture.process_image()
-        # move_sequence = self.capture.calculate_coordinates(circle_coordinates)
-        # if self.validate_move(move_sequence):
-        #     robot_move = [self.selected_piece.number, self.target_square.row]
-        #     print("Robot move")
-        #     if self.board.move_sequence == robot_move:
-        #         self.make_move()
-        #         del root
-        #     else:
-        #         print("Robot unable to correctly actuate move")
-        #         self.valid_move = False
-        #         self.ai_move()
-        # else:
-        #     print("Robot unable to correctly actuate move")
-        #     self.valid_move = False
-        #     self.ai_move()
+        self.capture.capture_image(self.cap, self.valid_move, True)
+        circle_coordinates = self.capture.process_image()
+        move_sequence = self.capture.calculate_coordinates(circle_coordinates)
+        if self.validate_move(move_sequence):
+            robot_move = [self.selected_piece.number, self.target_square.row]
+            print("Robot move")
+            if self.board.move_sequence == robot_move:
+                self.make_move()
+                del root
+            else:
+                print("Robot unable to correctly actuate move")
+                self.valid_move = False
+                self.ai_move()
+        else:
+            print("Robot unable to correctly actuate move")
+            self.valid_move = False
+            self.ai_move()
 
     def human_move(self):
-        # self.capture.capture_image(self.cap, self.valid_move, False)
-        # circle_coordinates = self.capture.process_image()
-        # move_sequence = self.capture.calculate_coordinates(circle_coordinates)
-        start_1 = int(input("row 1: "))
-        start_2 = int(input("col 1: "))
-        target_1 = int(input("row 2: "))
-        target_2 = int(input("col 2: "))
-        start = [start_1, start_2]
-        target = [target_1, target_2]
-        move_sequence = [start, target]
+        self.capture.capture_image(self.cap, self.valid_move, False)
+        circle_coordinates = self.capture.process_image()
+        move_sequence = self.capture.calculate_coordinates(circle_coordinates)
+        # start_1 = int(input("row 1: "))
+        # start_2 = int(input("col 1: "))
+        # target_1 = int(input("row 2: "))
+        # target_2 = int(input("col 2: "))
+        # start = [start_1, start_2]
+        # target = [target_1, target_2]
+        # move_sequence = [start, target]
 
         if self.validate_move(move_sequence):
             self.board.move_sequence = [self.selected_piece.number, self.target_square.number]

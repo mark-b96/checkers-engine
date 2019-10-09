@@ -1,3 +1,6 @@
+"""
+Author: Mark Bonney
+"""
 import numpy as np
 from Piece import Piece
 from Square import Square

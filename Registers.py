@@ -1,4 +1,6 @@
-
+"""
+Author: Mark Bonney
+"""
 class Registers(object):
     def __init__(self):
         self.registers = {
