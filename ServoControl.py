@@ -4,7 +4,7 @@ Author: Mark Bonney
 """
 import serial
 import crcmod
-# import ASUS.GPIO as GPIO
+import ASUS.GPIO as GPIO
 import time
 from Registers import Registers
 import struct
@@ -320,7 +320,7 @@ class ServoControl(object):
         shoulder_2_target = int(shoulder_steps+2048)
         elbow_steps = self.angle_to_steps(elbow_angle)
         elbow_target = int(2048 - elbow_steps)
-        return [waist_target, shoulder_1_target, shoulder_2_target, elbow_target]
+        return [waist_target, shoulder_1_target, shoulder_2_target, elbow_target, wrist_angle]
 
     @staticmethod
     def calculate_waist_angle(x_coordinate, y_coordinate):
@@ -350,14 +350,37 @@ class ServoControl(object):
         return x_coordinate, y_coordinate
 
     def actuate_robot_arm(self, target_1, target_2):
-        # self.gripper_blow()
-        self.goal_positions = self.ik_calculations(target_1[0], target_1[1])
-        print("T1: ", self.goal_positions)
-        self.goal_positions = self.ik_calculations(target_2[0], target_2[1])
-        print("T2: ", self.goal_positions)
-        # self.goal_positions = [2107, 2048, 2048, 2048]
-        # self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-        # self.actuate_wrist(180)
+        self.gripper_blow()
+        ik_angles = self.ik_calculations(target_1[0], target_1[1])
+        self.goal_positions = ik_angles[:3]
+        self.goal_positions[2] = self.goal_positions[2]+50
+        self.goal_positions[3] = self.goal_positions[3]-100
+        wrist_angle = ik_angles[4]
+        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+        self.actuate_wrist(wrist_angle)
+        time.sleep(2)
+        self.goal_positions = ik_angles[:3]
+        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+        time.sleep(4)
+        self.gripper_suction()
+        print("T1: ", self.goal_positions, wrist_angle)
+        ik_angles = self.ik_calculations(target_2[0], target_2[1])
+        self.goal_positions = ik_angles[:3]
+        self.goal_positions[2] = self.goal_positions[2]+50
+        self.goal_positions[3] = self.goal_positions[3]-100
+        wrist_angle = ik_angles[4]
+        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+        self.actuate_wrist(wrist_angle)
+        print("T2: ", self.goal_positions, wrist_angle)
+        time.sleep(5)
+        self.gripper_blow()
+        time.sleep(3)
+        self.goal_positions = [2335, 1656, 2411, 1034]
+        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+        time.sleep(2)
+        self.goal_positions = [2107, 2048, 2048, 2048]
+        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+        self.actuate_wrist(180)
         # time.sleep(5)
         # self.goal_positions = [2467, 1656, 2411, 952]
         # self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
