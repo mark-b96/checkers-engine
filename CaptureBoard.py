@@ -11,6 +11,9 @@ import time
 class CaptureBoard(object):
     def __init__(self):
         self.corner_coordinates = []
+        self.push_button_pin = 37
+        self.red_led_pin = 33
+        self.green_led_pin = 35
 
     def initialise_camera(self):
         cv2.setNumThreads(4)
@@ -21,9 +24,9 @@ class CaptureBoard(object):
 
     def pin_setup(self):
         GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(37, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Push-button pin with pull-up resistor
-        GPIO.setup(7, GPIO.OUT)  # Red LED output
-        GPIO.setup(21, GPIO.OUT)  # Green LED output
+        GPIO.setup(self.push_button_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Push-button pin with pull-up resistor
+        GPIO.setup(self.red_led_pin, GPIO.OUT)  # Red LED output
+        GPIO.setup(self.green_led_pin, GPIO.OUT)  # Green LED output
 
     def calibrate_board(self, cap):
         x = 0
@@ -33,7 +36,7 @@ class CaptureBoard(object):
         grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Convert image to greyscale
         img_cal = grey
         img_cal = img_cal[y:y + 480, x: x + 400]
-        cv2.imwrite('/home/linaro/Pictures/calibrated_board.png', img_cal)
+##        cv2.imwrite('/home/linaro/Pictures/calibrated_board.png', img_cal)
         ret, corners = cv2.findChessboardCorners(grey, (7, 7), None)
         print("Attempting to calibrate board")
         if ret:
@@ -48,6 +51,17 @@ class CaptureBoard(object):
                 time.sleep(2)
                 self.calibrate_board(cap)
             print("Board successfully calibrated")
+            while 1:
+                 state_1 = GPIO.input(self.push_button_pin)
+                 if state_1 == False:
+                     time.sleep(0.2)
+                     ret, frame = cap.read()
+                     grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Convert image to greyscale
+                     img_init = grey
+                     img_init = img_init[y:y + 480, x: x + 400]
+                     cv2.imwrite('/home/linaro/Pictures/calibrated_board.png', img_init)
+                     print("Game commencing")
+                     break
         else:
             print("Fail 2. Attempting to recalibrate")
             time.sleep(2)
@@ -57,21 +71,21 @@ class CaptureBoard(object):
         while 1:
             ret, frame = cap.read()
             grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            cv2.imshow('img1', grey)
-            state = GPIO.input(37)
+#            cv2.imshow('img1', grey)
+            state_2 = GPIO.input(self.push_button_pin)
 
             if cv2.waitKey(30) & 0xFF == ord('c'):
                 self.calibrate_board(cap)
                 valid_move = True
 
             if valid_move:
-                GPIO.output(7, GPIO.LOW)
-                GPIO.output(21, GPIO.HIGH)
+                GPIO.output(self.red_led_pin, GPIO.LOW)
+                GPIO.output(self.green_led_pin, GPIO.HIGH)
             else:
-                GPIO.output(7, GPIO.HIGH)
-                GPIO.output(21, GPIO.LOW)
+                GPIO.output(self.red_led_pin, GPIO.HIGH)
+                GPIO.output(self.green_led_pin, GPIO.LOW)
 
-            if state is False or ai_move:  # Push button pressed by user/ robot's turn
+            if state_2 == False or ai_move:  # Push button pressed by user/ robot's turn
                 start_time = time.time()
                 print("Image captured!")
                 time.sleep(.2)
@@ -101,8 +115,8 @@ class CaptureBoard(object):
         img_sub = cv2.imread('/home/linaro/Pictures/diff.png')
         grey = cv2.cvtColor(img_sub, cv2.COLOR_BGR2GRAY)
         grey = cv2.GaussianBlur(grey, (9, 9), 0)  # (9,9) = size of the kernel
-        predicted_circles = cv2.HoughCircles(grey, cv2.HOUGH_GRADIENT, dp=1, minDist=15,
-                                             param1=30, param2=15, minRadius=10, maxRadius=20)
+        predicted_circles = cv2.HoughCircles(grey, cv2.HOUGH_GRADIENT, dp=1, minDist=16,
+                                             param1=30, param2=15, minRadius=10, maxRadius=20) #10, 20
 
         if predicted_circles is not None:
             print(predicted_circles.shape[1])
@@ -139,9 +153,10 @@ class CaptureBoard(object):
         predicted_squares = []
         print("First coordinate: ", self.corner_coordinates[0][0])
         square_width = self.corner_coordinates[1][0][0] - self.corner_coordinates[0][0][0]
-        square_height = self.corner_coordinates[7][0][1] - self.corner_coordinates[5][0][1]
+        square_height = self.corner_coordinates[13][0][1] - self.corner_coordinates[5][0][1]
         board_offset = [self.corner_coordinates[0][0][0] - square_width,
                         self.corner_coordinates[0][0][1] - square_height]
+        angle_height = self.corner_coordinates[6][0][1] - self.corner_coordinates[0][0][1]
         print("Square width: ", square_width)
         print("Square height: ", square_height)
         print("First coordinate: ", self.corner_coordinates[0][0])
@@ -149,7 +164,7 @@ class CaptureBoard(object):
 
         for coordinates in circle_coordinates:
             row = math.floor((coordinates[0] - board_offset[0]) / square_width)
-            col = math.floor((coordinates[1] - board_offset[1]) / square_height)
+            col = math.floor((coordinates[1] - board_offset[1]- angle_height) / square_height)
             predicted_squares.append([col, row])
 
         print(predicted_squares)

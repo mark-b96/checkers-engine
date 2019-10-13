@@ -2,7 +2,7 @@
 Author: Mark Bonney
 """
 from Board import Board
-from GUI import GUI
+##from GUI import GUI
 from CaptureBoard import CaptureBoard
 from AI import AI
 from ServoControl import ServoControl
@@ -16,17 +16,17 @@ class Game(object):
         self.valid_move = True
         self.board = Board()
         self.board.initialise_board()
-        self.interface = GUI()
-        self.interface.draw_board(self.board)
-        self.interface.update_gui(self.board)
-        self.interface.get_square_coordinates(self.board)
+##        self.interface = GUI()
+##        self.interface.draw_board(self.board)
+##        self.interface.update_gui(self.board)
+##        self.interface.get_square_coordinates(self.board)
         self.selected_piece = None
         self.target_square = None
         self.capture = CaptureBoard()
         self.cap = self.capture.initialise_camera()
-        time.sleep(2)
-        self.capture.calibrate_board(self.cap)
+        time.sleep(0.1)
         self.capture.pin_setup()
+        self.capture.calibrate_board(self.cap)
         self.ai = AI()
         self.servos = ServoControl()
         self.servos.pin_setup()
@@ -53,13 +53,12 @@ class Game(object):
             exit(0)
         print(self.board.move_sequence)
         self.servos.actuate_robot_arm(target_1, target_2)
-        self.make_move()
         self.capture.capture_image(self.cap, self.valid_move, True)
         circle_coordinates = self.capture.process_image()
         move_sequence = self.capture.calculate_coordinates(circle_coordinates)
         if self.validate_move(move_sequence):
-            robot_move = [self.selected_piece.number, self.target_square.row]
-            print("Robot move")
+            robot_move = [self.selected_piece.number, self.target_square.number]
+            print("Robot move", robot_move)
             if self.board.move_sequence == robot_move:
                 self.make_move()
                 del root
@@ -123,13 +122,15 @@ class Game(object):
             self.ai_move()
             self.human_move()
 
+
+
     def make_move(self):
         if self.board.legal_move(self.white_turn):
             self.board.update_board()
             self.board.final_possible_moves = []
             self.selected_piece = None
-            self.interface.draw_board(self.board)
-            self.interface.update_gui(self.board)
+##            self.interface.draw_board(self.board)
+##            self.interface.update_gui(self.board)
             self.white_turn = not self.white_turn
         else:
             self.valid_move = False
