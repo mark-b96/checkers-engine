@@ -6,6 +6,7 @@ import cv2
 import math
 import ASUS.GPIO as GPIO
 import time
+import ast
 
 
 class CaptureBoard(object):
@@ -27,6 +28,25 @@ class CaptureBoard(object):
         GPIO.setup(self.push_button_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Push-button pin with pull-up resistor
         GPIO.setup(self.red_led_pin, GPIO.OUT)  # Red LED output
         GPIO.setup(self.green_led_pin, GPIO.OUT)  # Green LED output
+
+    def start_game(self, cap):
+        x = 0
+        y = 0
+        with open('calibration.txt', 'r') as f:
+            for coordinate in f:
+                self.corner_coordinates.append(coordinate.strip())
+        self.corner_coordinates = [ast.literal_eval(i) for i in self.corner_coordinates]
+        while 1:
+            state_1 = GPIO.input(self.push_button_pin)
+            if state_1 == False:
+                time.sleep(0.2)
+                ret, frame = cap.read()
+                grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Convert image to greyscale
+                img_init = grey
+                img_init = img_init[y:y + 480, x: x + 400]
+                cv2.imwrite('/home/linaro/Pictures/calibrated_board.png', img_init)
+                print("Game commencing")
+                break
 
     def calibrate_board(self, cap):
         x = 0
@@ -51,17 +71,9 @@ class CaptureBoard(object):
                 time.sleep(2)
                 self.calibrate_board(cap)
             print("Board successfully calibrated")
-            while 1:
-                 state_1 = GPIO.input(self.push_button_pin)
-                 if state_1 == False:
-                     time.sleep(0.2)
-                     ret, frame = cap.read()
-                     grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Convert image to greyscale
-                     img_init = grey
-                     img_init = img_init[y:y + 480, x: x + 400]
-                     cv2.imwrite('/home/linaro/Pictures/calibrated_board.png', img_init)
-                     print("Game commencing")
-                     break
+            with open('calibration.txt', 'w') as f:
+                for coordinate in self.corner_coordinates:
+                    f.write("%s\n" % coordinate)
         else:
             print("Fail 2. Attempting to recalibrate")
             time.sleep(2)

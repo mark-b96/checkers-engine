@@ -15,14 +15,13 @@ import numpy as np
 class ServoControl(object):
     def __init__(self):
         self.baud_rate = 1000000
+        self.baud_rate_2 = 500000
         self.direction_pin = 12
-        self.wrist_pin = 23
-        self.wrist_pwm = None
-        self.gripper_pin = 21
-        self.gripper_pwm = None
         self.serial_port = '/dev/ttyS1'
+        self.serial_port_2 = '/dev/ttyS4'
         self.timeout = 0.05
         self.serial_connection = None
+        self.serial_connection_2 = None
         self.ping = 0x01
         self.read = 0x02
         self.write = 0x03
@@ -43,19 +42,12 @@ class ServoControl(object):
     def pin_setup(self):
         GPIO.setmode(GPIO.BOARD)
         GPIO.setup(self.direction_pin, GPIO.OUT)
-        GPIO.setup(self.gripper_pin, GPIO.OUT)
-        GPIO.setup(self.wrist_pin, GPIO.OUT)
-        GPIO.output(self.gripper_pin, GPIO.HIGH)
-        GPIO.output(self.wrist_pin, GPIO.HIGH)
-        self.gripper_pwm = GPIO.PWM(self.gripper_pin, 61.3)
-        self.wrist_pwm = GPIO.PWM(self.wrist_pin, 61.3)
-        self.gripper_pwm.start(9)
-        self.wrist_pwm.start(self.wrist_duty_cycle(135))
         GPIO.setwarnings(False)
 
     def serial_setup(self):
         try:
             self.serial_connection = serial.Serial(self.serial_port, self.baud_rate, timeout=self.timeout)
+            self.serial_connection_2 = serial.Serial(self.serial_port_2, self.baud_rate_2, timeout=self.timeout)
         except serial.SerialException:
             raise IOError("Error connecting to Servomotors")
 
@@ -79,9 +71,7 @@ class ServoControl(object):
     def calculate_parameters(command, position):
         r = Registers()
         address = r.get_address(command)
-##        print("Address:", address)
         byte_count = r.get_bytes(command)
-##        print("Byte count: ", byte_count)
         parameter_1 = address  # Low-order byte from the starting address
         parameter_2 = 0x00  # High-order byte from the starting address
         if position == 1:
@@ -187,10 +177,8 @@ class ServoControl(object):
         body = self.serial_connection.read(5)
         parameter_count = body[2] - 4
         error = self.serial_connection.read(1)
-##        print("Error: ", error)
         character_format = "<B"
         error_message = struct.unpack(character_format, error)[0]
-##        print(error_message)
 
         if parameter_count > 0:
             parameters = self.serial_connection.read(parameter_count)
@@ -206,8 +194,6 @@ class ServoControl(object):
                 0]  # Reverse bytes (Little-endian) and store as unsigned integer
         crc_1 = self.serial_connection.read(1)
         crc_2 = self.serial_connection.read(1)
-        ##        print("CRCs: ",crc_1, crc_2)
-        #        print("Position: ", position)
         if position:
             print("Position: ", position)
         #            self.draw_graph(position)
@@ -236,8 +222,6 @@ class ServoControl(object):
 
     def terminate_serial(self):
         self.serial_connection.close()
-        self.gripper_pwm.stop()
-        self.wrist_pwm.stop()
         GPIO.cleanup()
 
     def get_reading(self, i):
@@ -277,16 +261,16 @@ class ServoControl(object):
             time.sleep(5)
     @staticmethod
     def wrist_duty_cycle(wrist_angle):
-        return (0.0625 * wrist_angle) + 2.95
+        return '{:05.2f}'.format(((1123.0/18000.0) * wrist_angle) + 3.76)
 
     def actuate_wrist(self, angle):
-        self.wrist_pwm.ChangeDutyCycle(self.wrist_duty_cycle(angle))
+        self.serial_pwm('w', self.wrist_duty_cycle(angle))
 
     def gripper_suction(self):
-        self.gripper_pwm.ChangeDutyCycle(7.603)
+        self.serial_pwm('g', "{:02}".format(12))
 
     def gripper_blow(self):
-        self.gripper_pwm.ChangeDutyCycle(10.644)
+        self.serial_pwm('g', "{:02}".format(9))
 
     def ik_calculations(self, square_row, square_column):
         x, y = self.calculate_square_coordinates(square_row, square_column)
@@ -304,7 +288,7 @@ class ServoControl(object):
         print("Wrist angle: ", wrist_angle)
         waist_steps = self.angle_to_steps(waist_angle)*2  # For the 2:1 gear reduction
         shoulder_steps = self.angle_to_steps(shoulder_angle)
-        if square_column > 3: 
+        if square_column > 3:
             waist_target = int(waist_steps+2048)
         else:
             waist_target = int(2048-waist_steps)
@@ -341,15 +325,26 @@ class ServoControl(object):
         y_coordinate = (row*square_size) + (square_size/2.) + board_distance
         return x_coordinate, y_coordinate
 
-    def actuate_robot_arm(self, target_1, target_2):
+    def serial_pwm(self, servo, pwm_value):
+        self.serial_connection_2.flushInput()
+        command = "M" + servo + pwm_value
+        print("Command: ", command)
+        command = str.encode(command)
+        self.serial_connection_2.write(command)
+
+    def actuate_robot_arm(self, target_1, target_2, capture_target):
 #        self.learn_positions()
+
         self.goal_positions = [2048, 2048, 2048, 2048]
         self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-        self.actuate_wrist(180)
+        self.actuate_wrist(0)
+        time.sleep(2)
         pick_up = True
         targets = [target_1, target_2]
-##        targets = [[2,1], [3,0], [5,0], [4,1], [2,7], [3,6], [5,6], [4,7]]
-
+        if capture_target:
+            targets.append(capture_target)
+            targets.append([3,8])
+        print("Targets: ", targets)
 
         for target in targets:
             print("Target: ", target)
@@ -358,13 +353,14 @@ class ServoControl(object):
             ik_angles = self.ik_calculations(target[0], target[1])
             self.goal_positions = ik_angles[:4]
             if target[1] < 4:
-                self.goal_positions[0] = self.goal_positions[0] + 50
-            self.goal_positions[3] = self.goal_positions[3] - 70
+                self.goal_positions[0] = self.goal_positions[0] + 70 #50
+            self.goal_positions[3] = self.goal_positions[3] - 50 # 70
             print("Goal Positions: ", self.goal_positions)
-            wrist_angle = ik_angles[4]
+            wrist_angle = 180 - ik_angles[4]
+            print("Wrist angle: ", wrist_angle)
             if pick_up:
-                self.goal_positions[1] = self.goal_positions[1] + 75
-                self.goal_positions[2] = self.goal_positions[2] - 75
+                self.goal_positions[1] = self.goal_positions[1] + 65
+                self.goal_positions[2] = self.goal_positions[2] - 65
             else:
                 self.goal_positions[1] = self.goal_positions[1] + 15
                 self.goal_positions[2] = self.goal_positions[2] - 15
@@ -373,10 +369,10 @@ class ServoControl(object):
             time.sleep(3)
             if pick_up:
                 if target[0] < 5:
-                    self.goal_positions[1] = self.goal_positions[1] - 80
-                    self.goal_positions[2] = self.goal_positions[2] + 80
-                self.goal_positions[1] = self.goal_positions[1] - 75
-                self.goal_positions[2] = self.goal_positions[2] + 75
+                    self.goal_positions[1] = self.goal_positions[1] - 75
+                    self.goal_positions[2] = self.goal_positions[2] + 75
+                self.goal_positions[1] = self.goal_positions[1] - 70
+                self.goal_positions[2] = self.goal_positions[2] + 70
                 self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
                 time.sleep(4)
                 self.gripper_suction()
@@ -388,65 +384,8 @@ class ServoControl(object):
             self.goal_positions[2] = self.goal_positions[2] - 75
             self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
             time.sleep(1)
-            if not pick_up:
-                self.goal_positions = [2048, 2048, 2048, 2048]
-                self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-                self.actuate_wrist(180)
-                time.sleep(2)
             pick_up = not pick_up
-##        self.goal_positions = ik_angles[:4]
-##        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-##        time.sleep(4)
-##        self.gripper_suction()
-##        print("T1: ", self.goal_positions, wrist_angle)
-##        ik_angles = self.ik_calculations(target_2[0], target_2[1])
-##        self.goal_positions = ik_angles[:4]
-##        self.goal_positions[1] = self.goal_positions[1]+50
-##        self.goal_positions[2] = self.goal_positions[2]-100
-##        wrist_angle = ik_angles[4]
-##        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-##        self.actuate_wrist(wrist_angle)
-##        print("T2: ", self.goal_positions, wrist_angle)
-##        time.sleep(5)
-##        self.gripper_blow()
-##        time.sleep(3)
-##        self.goal_positions = ik_angles[:4]
-##        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-##        time.sleep(2)
-##        self.goal_positions = [2107, 2048, 2048, 2048]
-##        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-##        self.actuate_wrist(180)
-
-##        self.goal_positions = [2107, 2048, 2048, 2048]
-##        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-##        self.actuate_wrist(180)
-##        time.sleep(5)
-##        ik_angles = self.ik_calculations(target_2[0], target_2[1])
-##        self.goal_positions = ik_angles[:4]
-##        wrist_angle = ik_angles[4]
-##        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-##        self.actuate_wrist(wrist_angle)
-##        time.sleep(5)
-##        self.goal_positions = [2107, 2048, 2048, 2048]
-##        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-##        self.actuate_wrist(180)
-        # self.goal_positions = [2467, 1656, 2411, 952]
-        # self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-        # self.actuate_wrist(45)
-        # time.sleep(2)
-        # self.goal_positions = [2467, 1605, 2520, 952]
-        # self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-        # time.sleep(4)
-        # self.gripper_suction()
-        # self.goal_positions = [2467, 1656, 2411, 1047]
-        # self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-        # time.sleep(2)
-        # self.goal_positions = [2335, 1588, 2501, 1034]
-        # self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-        # self.actuate_wrist(50)
-        # time.sleep(5)
-        # self.gripper_blow()
-        # time.sleep(3)
-        # self.goal_positions = [2335, 1656, 2411, 1034]
-        # self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
-        # time.sleep(2)
+        self.goal_positions = [2048, 2048, 2048, 2048]
+        self.transmit_packet('Goal Position', 2048, self.sync_write, self.sync_id)
+        self.actuate_wrist(0)
+        time.sleep(2)

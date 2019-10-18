@@ -26,11 +26,13 @@ class Game(object):
         self.cap = self.capture.initialise_camera()
         time.sleep(0.1)
         self.capture.pin_setup()
-        self.capture.calibrate_board(self.cap)
+        self.capture.start_game(self.cap)
+##        self.capture.calibrate_board(self.cap)
         self.ai = AI()
         self.servos = ServoControl()
         self.servos.pin_setup()
         self.servos.serial_setup()
+        time.sleep(1)
         self.servos.initialise_servos()
         self.depth = 1  # Single move lookahead
         self.game_termination = False
@@ -40,19 +42,31 @@ class Game(object):
         self.board.print_checkers_board()
         self.ai.terminal_state = False
         max_value = self.ai.alpha_beta(root, self.depth, -10000, 10000, True)
-        target_1, target_2 = None, None
+        target_1, target_2, capture_target = None, None, None
         if root.children:
             for child in root.children:
                 if child.value == max_value:
                     self.board.move_sequence = child.name.move_sequence
                     target_1 = [child.name.origin_square.row, child.name.origin_square.column]
                     target_2 = [child.name.final_square.row, child.name.final_square.column]
+                    if abs(child.name.final_square.number - child.name.origin_square.number) > 5:
+                        if child.name.final_square.row - child.name.origin_square.row > 0:
+                            capture_target_row = child.name.origin_square.row + 1
+                        else:
+                            capture_target_row = child.name.origin_square.row - 1
+                        if child.name.final_square.column - child.name.origin_square.column > 0:
+                            capture_target_column = child.name.origin_square.column + 1
+                        else:
+                            capture_target_column = child.name.origin_square.column - 1
+                        capture_target = [capture_target_row, capture_target_column]
+
         else:
             print("Game over human wins")
             self.servos.terminate_serial()
             exit(0)
         print(self.board.move_sequence)
-        self.servos.actuate_robot_arm(target_1, target_2)
+        print("Capture target", capture_target)
+        self.servos.actuate_robot_arm(target_1, target_2, capture_target)
         self.capture.capture_image(self.cap, self.valid_move, True)
         circle_coordinates = self.capture.process_image()
         move_sequence = self.capture.calculate_coordinates(circle_coordinates)
@@ -75,14 +89,6 @@ class Game(object):
         self.capture.capture_image(self.cap, self.valid_move, False)
         circle_coordinates = self.capture.process_image()
         move_sequence = self.capture.calculate_coordinates(circle_coordinates)
-        # start_1 = int(input("row 1: "))
-        # start_2 = int(input("col 1: "))
-        # target_1 = int(input("row 2: "))
-        # target_2 = int(input("col 2: "))
-        # start = [start_1, start_2]
-        # target = [target_1, target_2]
-        # move_sequence = [start, target]
-
         if self.validate_move(move_sequence):
             self.board.move_sequence = [self.selected_piece.number, self.target_square.number]
             self.make_move()
@@ -121,8 +127,6 @@ class Game(object):
         while 1:
             self.ai_move()
             self.human_move()
-
-
 
     def make_move(self):
         if self.board.legal_move(self.white_turn):
