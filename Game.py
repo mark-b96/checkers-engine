@@ -69,6 +69,9 @@ class Game(object):
         self.servos.actuate_robot_arm(target_1, target_2, capture_target)
         self.capture.capture_image(self.cap, self.valid_move, True)
         circle_coordinates = self.capture.process_image()
+        if circle_coordinates is None:
+            self.valid_move = False
+            self.ai_move()
         move_sequence = self.capture.calculate_coordinates(circle_coordinates)
         if self.validate_move(move_sequence):
             robot_move = [self.selected_piece.number, self.target_square.number]
@@ -88,6 +91,9 @@ class Game(object):
     def human_move(self):
         self.capture.capture_image(self.cap, self.valid_move, False)
         circle_coordinates = self.capture.process_image()
+        if circle_coordinates is None:
+            self.valid_move = False
+            self.human_move()
         move_sequence = self.capture.calculate_coordinates(circle_coordinates)
         if self.validate_move(move_sequence):
             self.board.move_sequence = [self.selected_piece.number, self.target_square.number]
@@ -128,6 +134,8 @@ class Game(object):
             self.ai_move()
             self.human_move()
 
+
+
     def make_move(self):
         if self.board.legal_move(self.white_turn):
             self.board.update_board()
@@ -135,6 +143,7 @@ class Game(object):
             self.selected_piece = None
 ##            self.interface.draw_board(self.board)
 ##            self.interface.update_gui(self.board)
+            self.valid_move = True
             self.white_turn = not self.white_turn
         else:
             self.valid_move = False

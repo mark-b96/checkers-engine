@@ -127,10 +127,11 @@ class CaptureBoard(object):
         img_sub = cv2.imread('/home/linaro/Pictures/diff.png')
         grey = cv2.cvtColor(img_sub, cv2.COLOR_BGR2GRAY)
         grey = cv2.GaussianBlur(grey, (9, 9), 0)  # (9,9) = size of the kernel
-        predicted_circles = cv2.HoughCircles(grey, cv2.HOUGH_GRADIENT, dp=1, minDist=16,
-                                             param1=30, param2=15, minRadius=10, maxRadius=20) #10, 20
+        predicted_circles = cv2.HoughCircles(grey, cv2.HOUGH_GRADIENT, dp=1, minDist=20, # minDist = 16
+                                             param1=30, param2=15, minRadius=10, maxRadius=20) #minradius = 10, 20
 
-        if predicted_circles is not None:
+        if predicted_circles is not None or predicted_circles.shape[1] > 3 or\
+            predicted_circles.shape[1] < 2:
             print(predicted_circles.shape[1])
             print("Circles found")
             sorted_circles = []
