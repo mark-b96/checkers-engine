@@ -20,6 +20,21 @@ class AI(object):
         """
         board = root.name
         board_copy = copy.deepcopy(board)
+        moves = self.move_ordering(root, max_player)
+
+        if moves is not 0:  # Confirm that the piece can move
+            for move in moves:
+                board_copy.move_sequence = move
+                print("Move: ", board_copy.move_sequence)
+                if board_copy.legal_move(not max_player):
+                    self.terminal_state = False  # The agent can make a move
+                    board_copy.update_board()
+                    Node(board_copy, parent=root, alpha=0, beta=0)
+                    board_copy = copy.deepcopy(board)  # Restore board position
+
+    def move_ordering(self, root, max_player):
+        board = root.name
+        all_possible_moves = []
 
         for row in range(board.row_count):
             for column in range(board.column_count):
@@ -33,33 +48,47 @@ class AI(object):
                             moves = board.possible_moves(board.checkers_board[row][column])
                             if moves is not 0:  # Confirm that the piece can move
                                 for move in moves:
-                                    board_copy.move_sequence = [board_copy.checkers_board[row][column].number, move]
-                                    print("Move: ", board_copy.move_sequence)
-                                    if board_copy.legal_move(not max_player):
-                                        self.terminal_state = False  # The agent can make a move
-                                        board_copy.update_board()
-                                        board_copy.print_checkers_board()
-                                        Node(board_copy, parent=root, value=0)
-                                        board_copy = copy.deepcopy(board)  # Restore board position
+                                    move_sequence = [board.checkers_board[row][column].number, move]
+                                    if abs(move_sequence[0] - move_sequence[1]) > 5:
+                                        all_possible_moves.insert(0, move_sequence)
+                                        print("Capture move found")
+                                    else:
+                                        all_possible_moves.append(move_sequence)
+        print("Possible moves: ", all_possible_moves)
+        return all_possible_moves
 
     def alpha_beta(self, node, depth, alpha, beta, max_player):
         if depth == 0 or self.terminal_state:
             return self.heuristic_function(node, max_player)
         self.get_possible_moves(node, max_player)
-        print(RenderTree(node))
+        self.move_ordering(node, max_player)
+        for child in node.children:
+            child.name.print_checkers_board()
+
+        # print(RenderTree(node))
 
         if max_player:
+            max_eval = -100000
             for child in node.children:
-                alpha = max(alpha, self.alpha_beta(child, depth-1, alpha, beta, False))
+                evaluation = self.alpha_beta(child, depth-1, alpha, beta, False)
+                max_eval = max(max_eval, evaluation)
+                alpha = max(alpha, evaluation)
+                node.alpha = alpha
+                node.beta = beta
                 if alpha >= beta:
                     break
-            return alpha
+            return max_eval
         else:
+            min_eval = 100000
             for child in node.children:
-                beta = min(beta, self.alpha_beta(child, depth-1, alpha, beta, True))
+                evaluation = self.alpha_beta(child, depth-1, alpha, beta, True)
+                min_eval = min(min_eval, evaluation)
+                beta = min(beta, evaluation)
+                node.alpha = alpha
+                node.beta = beta
                 if alpha >= beta:
                     break
-            return beta
+            return min_eval
 
     @staticmethod
     def heuristic_function(node, max_player):
@@ -72,20 +101,27 @@ class AI(object):
                 if board.checkers_board[row][column].colour == "black":
                     if board.checkers_board[row][column].piece:
                         if board.checkers_board[row][column].piece.colour == "black":
-                            black_piece_count = black_piece_count + 1
+                            if board.checkers_board[row][column].piece.crowned:
+                                black_piece_count = black_piece_count + 2
+                            else:
+                                black_piece_count = black_piece_count + 1
                             if column == 0 or column == 7:
                                 position_value = position_value + 50
                         else:
-                            white_piece_count = white_piece_count + 1
+                            if board.checkers_board[row][column].piece.crowned:
+                                white_piece_count = white_piece_count + 2
+                            else:
+                                white_piece_count = white_piece_count + 1
         print("Number of black pieces:", black_piece_count)
         print("Number of white pieces:", white_piece_count)
-        if black_piece_count - white_piece_count > 0 and max_player:
-            position_value = position_value + 1000
-        elif black_piece_count - white_piece_count < 0 and not max_player:
-            position_value = position_value - 1000
+        diff = black_piece_count - white_piece_count
+        position_value = position_value + (diff*1000)
+        if diff == 0:
+            position_value = position_value + 500
 
-        node.value = position_value
         print(position_value)
+        node.alpha = position_value
+        # node.value = position_value
         return position_value
 
 

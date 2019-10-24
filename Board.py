@@ -50,7 +50,9 @@ class Board(object):
         if captured_piece:
             for captures in self.captured_squares:
                 if abs(self.final_square.column - captures.column) < 2 and\
-                        abs(self.final_square.row - captures.row) < 2:  # Check that correct piece is removed
+                        abs(self.final_square.row - captures.row) < 2 and\
+                        abs(self.origin_square.column - captures.column) < 2 and\
+                        abs(self.origin_square.column - captures.column) < 2:  # Check that correct piece is removed
                     captures.piece = None  # Remove captured pieces
         self.captured_squares.clear()
 
