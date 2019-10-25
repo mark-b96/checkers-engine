@@ -61,9 +61,6 @@ class AI(object):
         if depth == 0 or self.terminal_state:
             return self.heuristic_function(node, max_player)
         self.get_possible_moves(node, max_player)
-        self.move_ordering(node, max_player)
-        for child in node.children:
-            child.name.print_checkers_board()
 
         # print(RenderTree(node))
 
