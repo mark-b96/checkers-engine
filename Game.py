@@ -122,7 +122,6 @@ class Game(object):
     def validate_move(self, move_sequence):
         for move in move_sequence:
             selected_square = self.board.checkers_board[move[0]][move[1]]
-            # selected_square = self.interface.event_listener()
             print(self.board.checkers_board[move[0]][move[1]].number)
             if selected_square.piece:
                 if selected_square.piece.colour == "black":

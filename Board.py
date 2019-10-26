@@ -94,7 +94,6 @@ class Board(object):
             return False
 
     def possible_moves(self, selected_square):
-        print("Valid Piece", selected_square.piece.colour)
         temporary_possible_moves = self.get_piece_moves(selected_square)
         self.final_possible_moves = []
 
@@ -109,7 +108,6 @@ class Board(object):
                                     self.final_possible_moves.append(self.checkers_board[row][column].number)
         if not self.final_possible_moves:
             return 0
-        print(self.final_possible_moves)
         return self.final_possible_moves
 
     def get_piece_moves(self, selected_square):

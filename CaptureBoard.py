@@ -130,32 +130,32 @@ class CaptureBoard(object):
         predicted_circles = cv2.HoughCircles(grey, cv2.HOUGH_GRADIENT, dp=1, minDist=20, # minDist = 16
                                              param1=30, param2=15, minRadius=10, maxRadius=20) #minradius = 10, 20
 
-        if predicted_circles is not None or predicted_circles.shape[1] > 3 or\
-            predicted_circles.shape[1] < 2:
-            print(predicted_circles.shape[1])
-            print("Circles found")
-            sorted_circles = []
-            updated_circles = []
-            print("Predicted circles: ", predicted_circles[0])
-            if predicted_circles.shape[1] == 3:
-                for circle in predicted_circles[0]:
-                    sorted_circles.append(circle[0])
-                sorted_circles.sort()
-                print("Sorted circles: ", sorted_circles)
-                middle_piece = sorted_circles[1]
-                print("Middle piece: ", middle_piece)
-                for index, circle in enumerate(predicted_circles[0]):
-                    if circle[0] == middle_piece:
-                        print("Pre deletion: ", circle)
-                        print("index: ", index)
-                        updated_circles = np.delete(predicted_circles[0], index, 0)
-                        predicted_circles = np.array([updated_circles])
-                        print("New predicted circles: ", predicted_circles)
-                        break
-            predicted_circles = np.round(predicted_circles[0, :]).astype("int")
-            for (x, y, r,) in predicted_circles:
-                cv2.circle(img_sub, (x, y), r, (0, 255, 0), 1)
-                cv2.rectangle(img_sub, (x - 1, y - 1), (x + 1, y + 1), (0, 0, 255), -1)
+        if predicted_circles is not None:
+            if predicted_circles.shape[1] < 3 or predicted_circles.shape[1] > 2:
+                print(predicted_circles.shape[1])
+                print("Circles found")
+                sorted_circles = []
+                updated_circles = []
+                print("Predicted circles: ", predicted_circles[0])
+                if predicted_circles.shape[1] == 3:
+                    for circle in predicted_circles[0]:
+                        sorted_circles.append(circle[0])
+                    sorted_circles.sort()
+                    print("Sorted circles: ", sorted_circles)
+                    middle_piece = sorted_circles[1]
+                    print("Middle piece: ", middle_piece)
+                    for index, circle in enumerate(predicted_circles[0]):
+                        if circle[0] == middle_piece:
+                            print("Pre deletion: ", circle)
+                            print("index: ", index)
+                            updated_circles = np.delete(predicted_circles[0], index, 0)
+                            predicted_circles = np.array([updated_circles])
+                            print("New predicted circles: ", predicted_circles)
+                            break
+                predicted_circles = np.round(predicted_circles[0, :]).astype("int")
+                for (x, y, r,) in predicted_circles:
+                    cv2.circle(img_sub, (x, y), r, (0, 255, 0), 1)
+                    cv2.rectangle(img_sub, (x - 1, y - 1), (x + 1, y + 1), (0, 0, 255), -1)
 
         cv2.imwrite('/home/linaro/Pictures/circles_detected.png', img_sub)
         cv2.destroyAllWindows()
