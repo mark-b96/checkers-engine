@@ -99,7 +99,7 @@ class AI(object):
         diff = black_piece_count - white_piece_count
         position_value = position_value + (diff*1000)
         if diff == 0:
-            position_value = position_value + 500
+            position_value = position_value + 750
         return position_value
 
 

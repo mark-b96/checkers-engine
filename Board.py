@@ -4,11 +4,12 @@ Author: Mark Bonney
 import numpy as np
 from Piece import Piece
 from Square import Square
+import copy
 
 
 class Board(object):
     def __init__(self):
-        self.move_sequence, self.captured_squares, self.final_possible_moves = [], [], []
+        self.move_sequence, self.captured_squares, self.capture_pieces, self.final_possible_moves, self.final_capture_moves, self.hop_moves, self.origin_pieces = [], [], [], [], [], [], []
         self.square_count = 0
         self.origin_square, self.final_square = Square, Square
         self.valid_move = False
@@ -53,6 +54,7 @@ class Board(object):
                         abs(self.final_square.row - captures.row) < 2 and\
                         abs(self.origin_square.column - captures.column) < 2 and\
                         abs(self.origin_square.column - captures.column) < 2:  # Check that correct piece is removed
+                    self.capture_pieces.append(captures)
                     captures.piece = None  # Remove captured pieces
         self.captured_squares.clear()
 
@@ -112,7 +114,7 @@ class Board(object):
 
     def get_piece_moves(self, selected_square):
         piece_moves = []
-
+        board_copy = copy.deepcopy(self.checkers_board)
         if selected_square.piece.colour == "black" and \
                 selected_square.piece.crowned is False:  # Selected piece is black, uncrowned\
             for square in range(2, 6):  # Furthest a piece can move without hopping
@@ -150,7 +152,8 @@ class Board(object):
                         if (-1 < selected_square.row + (2*diagonal[0]) < 8) and \
                                 (-1 < selected_square.column + (2*diagonal[1]) < 8):
                             if not self.checkers_board[selected_square.row + (2*diagonal[0])][selected_square.column + (2*diagonal[1])].piece:
-                                final_capture_moves.append(self.checkers_board[selected_square.row + (2*diagonal[0])][selected_square.column + (2*diagonal[1])].number)
+                                final_square = self.checkers_board[selected_square.row + (2 * diagonal[0])][selected_square.column + (2 * diagonal[1])]
+                                final_capture_moves.append(self.checkers_board[selected_square.row + (2 * diagonal[0])][selected_square.column + (2 * diagonal[1])].number)
                                 self.captured_squares.append(self.checkers_board[selected_square.row + diagonal[0]][selected_square.column + diagonal[1]])
         return final_capture_moves
 

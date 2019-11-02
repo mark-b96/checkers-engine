@@ -22,6 +22,7 @@ class Game(object):
         self.interface.get_square_coordinates(self.board)
         self.selected_piece = None
         self.target_square = None
+        self.capture = False
         # self.capture = CaptureBoard()
         # self.cap = self.capture.initialise_camera()
         # time.sleep(0.1)
@@ -48,22 +49,27 @@ class Game(object):
                 if child.beta == root.alpha:
                     self.board.move_sequence = child.name.move_sequence
                     print("AI move: ", self.board.move_sequence)
-                    target_1 = [child.name.origin_square.row, child.name.origin_square.column]
-                    target_2 = [child.name.final_square.row, child.name.final_square.column]
+                    target_1 = child.name.origin_square
+                    target_2 = child.name.final_square
                     break
+            if abs(target_1.number - target_2.number) > 5:
+                print("CAPTURE")
+                if target_2.row - target_1.row > 0:
+                    capture_target_row = target_1.row + 1
+                else:
+                    capture_target_row = target_1.row - 1
+                if target_2.column - target_1.column > 0:
+                    capture_target_column = target_1.column + 1
+                else:
+                    capture_target_column = target_1.column - 1
+                capture_target = [capture_target_row, capture_target_column]
+                self.capture = True
+            else:
+                self.capture = False
+
+            self.target_square = target_2
             self.make_move()
             del root
-                    # if abs(child.name.final_square.number - child.name.origin_square.number) > 5:
-                    #     if child.name.final_square.row - child.name.origin_square.row > 0:
-                    #         capture_target_row = child.name.origin_square.row + 1
-                    #     else:
-                    #         capture_target_row = child.name.origin_square.row - 1
-                    #     if child.name.final_square.column - child.name.origin_square.column > 0:
-                    #         capture_target_column = child.name.origin_square.column + 1
-                    #     else:
-                    #         capture_target_column = child.name.origin_square.column - 1
-                    #     capture_target = [capture_target_row, capture_target_column]
-
         else:
             print("Game over human wins")
             # self.servos.terminate_serial()
@@ -112,6 +118,11 @@ class Game(object):
         print(move_sequence)
         if self.validate_move(move_sequence):
             self.board.move_sequence = [self.selected_piece.number, self.target_square.number]
+            if abs(self.selected_piece.number - self.target_square.number) > 5:
+                self.capture = True
+            else:
+                self.capture = False
+
             self.make_move()
         else:
             self.human_move()
@@ -148,7 +159,11 @@ class Game(object):
         while 1:
             print("Start AI move")
             self.ai_move()
+            if self.capture:
+                self.ai_move()
             self.human_move()
+            if self.capture:
+                self.human_move()
 
     def make_move(self):
         if self.board.legal_move(self.white_turn):
@@ -158,7 +173,24 @@ class Game(object):
             self.interface.draw_board(self.board)
             self.interface.update_gui(self.board)
             self.valid_move = True
-            self.white_turn = not self.white_turn
+            if self.capture:
+                moves = self.board.get_capture_moves(self.target_square)
+                if self.target_square.piece.colour == "white" and self.target_square.piece.crowned is False:
+                    for move in moves:
+                        if move > self.target_square.number:
+                            del move
+                elif self.target_square.piece.colour == "black" and self.target_square.piece.crowned is False:
+                    for move in moves:
+                        if move < self.target_square.number:
+                            moves.remove(move)
+                if moves:
+                    self.board.captured_squares.clear()
+
+                else:
+                    self.white_turn = not self.white_turn
+                    self.capture = False
+            else:
+                self.white_turn = not self.white_turn
         else:
             self.valid_move = False
             print("Invalid move made")
