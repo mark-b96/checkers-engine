@@ -28,16 +28,18 @@ class CaptureBoard(object):
         GPIO.setup(self.push_button_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Push-button pin with pull-up resistor
         GPIO.setup(self.red_led_pin, GPIO.OUT)  # Red LED output
         GPIO.setup(self.green_led_pin, GPIO.OUT)  # Green LED output
-
+        GPIO.setup(31, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     def start_game(self, cap):
         x = 0
         y = 0
-        with open('calibration.txt', 'r') as f:
+        with open('/home/linaro/Documents/checkers_engine/calibration.txt', 'r') as f:
             for coordinate in f:
                 self.corner_coordinates.append(coordinate.strip())
         self.corner_coordinates = [ast.literal_eval(i) for i in self.corner_coordinates]
-        while 1:
+        while GPIO.input(31):
             state_1 = GPIO.input(self.push_button_pin)
+            GPIO.output(self.green_led_pin, GPIO.HIGH)
+            GPIO.output(self.red_led_pin, GPIO.LOW)
             if state_1 == False:
                 time.sleep(0.2)
                 ret, frame = cap.read()
@@ -80,7 +82,7 @@ class CaptureBoard(object):
             self.calibrate_board(cap)
 
     def capture_image(self, cap, valid_move, ai_move):
-        while 1:
+        while GPIO.input(31):
             ret, frame = cap.read()
             grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 #            cv2.imshow('img1', grey)
