@@ -1,0 +1,11 @@
+ast
+serial
+crcmod
+cv2
+struct
+ASUS.GPIO
+matplotlib
+numpy
+pygame
+copy
+time
