@@ -113,30 +113,31 @@ class Board(object):
     def get_piece_moves(self, selected_square):
         piece_moves = []
 
-        if selected_square.piece.colour == "black" and \
-                selected_square.piece.crowned is False:  # Selected piece is black, uncrowned\
-            for square in range(2, 6):  # Furthest a piece can move without hopping
-                    piece_moves.append(selected_square.number+square)
-            for move in self.get_capture_moves(selected_square):  # calculate capture moves
-                if move > selected_square.number:
+        if selected_square.piece:
+            if selected_square.piece.colour == "black" and \
+                    selected_square.piece.crowned is False:  # Selected piece is black, uncrowned\
+                for square in range(2, 6):  # Furthest a piece can move without hopping
+                        piece_moves.append(selected_square.number+square)
+                for move in self.get_capture_moves(selected_square):  # calculate capture moves
+                    if move > selected_square.number:
+                        piece_moves.append(move)
+            elif selected_square.piece.colour == "white" and \
+                    selected_square.piece.crowned is False:  # Selected piece is black, uncrowned
+                for square in range(6, 2, -1):  # Furthest a piece can move without hopping
+                    piece_moves.append(selected_square.number-square)
+                for move in self.get_capture_moves(selected_square):  # calculate capture moves
+                    if move < selected_square.number:
+                        piece_moves.append(move)
+            elif selected_square.piece.crowned:  # Crowned piece has been selected
+                for square in range(2, 6):  # Furthest a piece can move without hopping
+                    piece_moves.append(selected_square.number + square)
+                for move in self.get_capture_moves(selected_square):  # calculate capture moves
                     piece_moves.append(move)
-        elif selected_square.piece.colour == "white" and \
-                selected_square.piece.crowned is False:  # Selected piece is black, uncrowned
-            for square in range(6, 2, -1):  # Furthest a piece can move without hopping
-                piece_moves.append(selected_square.number-square)
-            for move in self.get_capture_moves(selected_square):  # calculate capture moves
-                if move < selected_square.number:
-                    piece_moves.append(move)
-        elif selected_square.piece.crowned:  # Crowned piece has been selected
-            for square in range(2, 6):  # Furthest a piece can move without hopping
-                piece_moves.append(selected_square.number + square)
-            for move in self.get_capture_moves(selected_square):  # calculate capture moves
-                piece_moves.append(move)
 
-            for square in range(6, 2, -1):  # Furthest a piece can move without hopping
-                piece_moves.append(selected_square.number - square)
-            for move in self.get_capture_moves(selected_square):  # calculate capture moves
-                piece_moves.append(move)
+                for square in range(6, 2, -1):  # Furthest a piece can move without hopping
+                    piece_moves.append(selected_square.number - square)
+                for move in self.get_capture_moves(selected_square):  # calculate capture moves
+                    piece_moves.append(move)
 
         return piece_moves
 

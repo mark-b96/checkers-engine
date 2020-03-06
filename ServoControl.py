@@ -3,7 +3,7 @@ Author: Mark Bonney
 """
 import serial
 import crcmod
-import ASUS.GPIO as GPIO
+# import ASUS.GPIO as GPIO
 import time
 from Registers import Registers
 from IKCalculations import IKCalculations
